@@ -1,19 +1,18 @@
 @echo off
-title �������� AI ���� - CLI
+title LubanAI Disk - CLI
 
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
 :: Load portable environment (current session only)
-set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%PATH%"
+set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%ROOT%\node_modules\.bin;%PATH%"
 set "NODE_PATH=%ROOT%\runtime\node_modules"
 
-echo [�������� AI ����] Portable environment loaded
+echo LubanAI Disk - Portable CLI
 echo   Runtime: %ROOT%\runtime
 echo   Config: %ROOT%\config
-echo   Workspace: %ROOT%\workspace
 echo.
-echo Usage: opencode ^<command^>
+echo Usage: openclaw --help
 echo Type exit to quit
 echo.
 
