@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // ── Constants ──
-const APP_NAME = 'LubanAI Disk';
+const APP_NAME = '钉哥联盟 AI 智盘';
 const DEFAULT_PORT = 18789;
 const MAX_PORT = 18799;
 const GATEWAY_STARTUP_TIMEOUT = 180000;
@@ -23,8 +23,8 @@ const resourcesPath = isPackaged
 const nodeBin = isPackaged
     ? path.join(process.resourcesPath, 'runtime', 'node.exe')
     : path.join(appRoot, 'runtime', 'node.exe');
-// OpenClaw core location (openclaw.mjs)
-const openclawPath = path.join(appRoot, 'openclaw');
+// OpenClaw core location (node_modules/openclaw/openclaw.mjs)
+const openclawPath = path.join(appRoot, 'node_modules', 'openclaw');
 const openclawMjs = path.join(openclawPath, 'openclaw.mjs');
 // Portable data paths
 const configDir = path.join(appRoot, 'config');

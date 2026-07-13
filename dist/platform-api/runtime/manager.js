@@ -156,7 +156,6 @@ export class RuntimeManager {
         setSteps(0, RuntimeStatus.CHECKING, '[1/5] 环境检测中...');
         log('[Runtime] Step 1/5: 环境检测');
         const requiredDirs = [
-            DIRECTORIES.APP_OPENCLAW,
             DIRECTORIES.RUNTIME,
             DIRECTORIES.CONFIG,
             DIRECTORIES.WORKSPACE,
@@ -182,22 +181,22 @@ export class RuntimeManager {
             return { success: false, message: msg, state: store.runtime };
         }
         log(`[Runtime] Node.js 正常: ${nodePath}`);
-        // Check OpenClaw binary
-        const openclawDir = resolve(ROOT, DIRECTORIES.APP_OPENCLAW);
-        const openclawBin = resolve(openclawDir, 'opencode.exe');
-        if (!existsSync(openclawBin)) {
-            const msg = `[Runtime] OpenClaw 二进制未找到: ${openclawBin}`;
+        // Check OpenClaw source entry
+        const openclawDir = resolve(ROOT, 'openclaw');
+        const openclawMjs = resolve(openclawDir, 'openclaw.mjs');
+        if (!existsSync(openclawMjs)) {
+            const msg = `[Runtime] OpenClaw 入口未找到: ${openclawMjs}`;
             log(msg, LogLevel.ERROR);
             store.runtime.status = RuntimeStatus.ERROR;
             store.runtime.message = msg;
             return { success: false, message: msg, state: store.runtime };
         }
-        // Step 2: Launch OpenClaw Runtime
+        // Step 2: Launch OpenClaw Runtime via Node.js
         setSteps(1, RuntimeStatus.LOADING_RUNTIME, '[2/5] 启动 OpenClaw Runtime 进程...');
-        log(`[Runtime] Step 2/5: 执行命令: ${openclawBin}`);
+        log(`[Runtime] Step 2/5: 执行命令: ${nodePath} ${openclawMjs}`);
         setStartupTimer(); // <-- startup timeout guard
         try {
-            runtimeProcess = spawn(openclawBin, ['serve'], {
+            runtimeProcess = spawn(nodePath, [openclawMjs, 'gateway', 'run', '--allow-unconfigured', '--force'], {
                 cwd: openclawDir,
                 stdio: ['ignore', 'pipe', 'pipe'],
                 env: { ...process.env },

@@ -1,8 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build output
-dist/
+# Build output (keep tracked for portable USB use)
 
 # Portable Node.js runtime
 runtime/

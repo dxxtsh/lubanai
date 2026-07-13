@@ -1,9 +1,8 @@
-export declare const APP_NAME = "LubanAI Disk";
+export declare const APP_NAME = "\u9489\u54E5\u8054\u76DF AI \u667A\u76D8";
 export declare const APP_VERSION = "0.2.0";
 export declare const APP_BRAND = "\u9489\u54E5\u8054\u76DF";
 export declare const DIRECTORIES: {
     readonly ROOT: "";
-    readonly APP_OPENCLAW: "app/openclaw";
     readonly RUNTIME: "runtime";
     readonly LAUNCHER: "launcher";
     readonly CONFIG: "config";

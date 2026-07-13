@@ -1,9 +1,8 @@
-export const APP_NAME = 'LubanAI Disk';
+export const APP_NAME = '钉哥联盟 AI 智盘';
 export const APP_VERSION = '0.2.0';
 export const APP_BRAND = '钉哥联盟';
 export const DIRECTORIES = {
     ROOT: '',
-    APP_OPENCLAW: 'app/openclaw',
     RUNTIME: 'runtime',
     LAUNCHER: 'launcher',
     CONFIG: 'config',

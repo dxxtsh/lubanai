@@ -48,8 +48,8 @@ export function loadAll() {
         { id: 'workspace-lab', name: '实验工作区', path: `${WORKSPACE_DIR}/lab`, createdAt: now(), updatedAt: now() },
     ]);
     const agents = readJson(CONFIG_FILES.AGENTS, [
-        { id: 'agent-ops', name: '运维助手', avatar: 'OP', color: '#38bdf8', description: '负责环境检查、日志排查与启动诊断。', providerId: 'prov-default', modelName: 'gpt-4.1', systemPrompt: '你是 LubanAI Disk 的运维助手，优先输出可执行的诊断步骤。', workspaceId: 'workspace-default', skills: ['log-reader', 'workspace-tools'], channels: [{ type: 'terminal', enabled: true }], enabled: true },
-        { id: 'agent-dev', name: '开发助手', avatar: 'DV', color: '#f59e0b', description: '面向开发者的 Agent 编排与插件开发助手。', providerId: 'prov-default', modelName: 'gpt-4.1-mini', systemPrompt: '你是 LubanAI Disk 的开发助手，保持 OpenClaw 兼容性优先。', workspaceId: 'workspace-default', skills: ['plugin-sdk', 'workspace-tools'], channels: [{ type: 'terminal', enabled: true }], enabled: true },
+        { id: 'agent-ops', name: '运维助手', avatar: 'OP', color: '#38bdf8', description: '负责环境检查、日志排查与启动诊断。', providerId: 'prov-default', modelName: 'gpt-4.1', systemPrompt: '你是钉哥联盟 AI 智盘的运维助手，优先输出可执行的诊断步骤。', workspaceId: 'workspace-default', skills: ['log-reader', 'workspace-tools'], channels: [{ type: 'terminal', enabled: true }], enabled: true },
+        { id: 'agent-dev', name: '开发助手', avatar: 'DV', color: '#f59e0b', description: '面向开发者的 Agent 编排与插件开发助手。', providerId: 'prov-default', modelName: 'gpt-4.1-mini', systemPrompt: '你是钉哥联盟 AI 智盘的开发助手，保持 OpenClaw 兼容性优先。', workspaceId: 'workspace-default', skills: ['plugin-sdk', 'workspace-tools'], channels: [{ type: 'terminal', enabled: true }], enabled: true },
     ]);
     const providers = readJson(CONFIG_FILES.PROVIDERS, [
         { id: 'prov-default', name: '默认 Provider', type: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', apiKey: '', defaultModel: 'gpt-4.1', createdAt: now(), updatedAt: now() },
@@ -64,7 +64,7 @@ export function loadAll() {
         { id: 'plugin-mcp', name: 'MCP Gateway', version: '0.1.0', description: '预留 MCP 工具网关插件。', enabled: false, path: `${DIRECTORIES.PLUGINS}/mcp` },
     ]);
     const logs = readJson(CONFIG_FILES.LOGGING, [
-        { timestamp: now(), level: LogLevel.INFO, module: 'persistence', message: 'LubanAI Disk 配置已加载。' },
+        { timestamp: now(), level: LogLevel.INFO, module: 'persistence', message: '钉哥联盟 AI 智盘 配置已加载。' },
     ]);
     return { configs, workspaces, agents, providers, skills, plugins, logs };
 }
