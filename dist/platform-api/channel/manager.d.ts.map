@@ -1,0 +1,1 @@
+{"version":3,"file":"manager.d.ts","sourceRoot":"","sources":["../../../platform-api/channel/manager.ts"],"names":[],"mappings":"AAIA,OAAO,EAAE,aAAa,EAAe,MAAM,uBAAuB,CAAC;AAoEnE,qBAAa,cAAc;IACzB,OAAO,CAAC,QAAQ,CAAmC;IAEnD,QAAQ,IAAI,IAAI;IA0ChB,WAAW,IAAI,aAAa,EAAE;CAG/B"}

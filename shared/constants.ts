@@ -4,7 +4,6 @@ export const APP_BRAND = '钉哥联盟';
 
 export const DIRECTORIES = {
   ROOT: '',
-  APP_OPENCLAW: 'app/openclaw',
   RUNTIME: 'runtime',
   LAUNCHER: 'launcher',
   CONFIG: 'config',

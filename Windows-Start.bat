@@ -1,10 +1,10 @@
 @echo off
-title ¶¤¸çÁªÃË AI ÖÇÅÌ - Launcher
+title ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½ - Launcher
 
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
-echo [¶¤¸çÁªÃË AI ÖÇÅÌ] v0.1.0 - Starting...
+echo [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½] v0.1.0 - Starting...
 echo.
 
 :: --- 1. Environment Check ---
@@ -12,10 +12,6 @@ set "ENV_OK=1"
 
 if not exist "%ROOT%\runtime\node.exe" (
     echo [FAIL] Node.js not found: %ROOT%\runtime\node.exe
-    set "ENV_OK=0"
-)
-if not exist "%ROOT%\app\openclaw\" (
-    echo [WARN] OpenClaw Runtime dir not found: %ROOT%\app\openclaw\
     set "ENV_OK=0"
 )
 
@@ -34,7 +30,7 @@ set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%PATH%"
 set "NODE_PATH=%ROOT%\runtime\node_modules"
 
 :: --- 3. Start Electron App ---
-echo [OK] Starting ¶¤¸çÁªÃË AI ÖÇÅÌ...
+echo [OK] Starting ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½...
 echo.
 
 if exist "%ROOT%\node_modules\.bin\electron.cmd" (
@@ -55,6 +51,6 @@ if exist "%ROOT%\node_modules\.bin\electron.cmd" (
 )
 
 echo.
-echo ¶¤¸çÁªÃË AI ÖÇÅÌ started.
+echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½ started.
 echo.
 pause

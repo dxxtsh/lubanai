@@ -1,0 +1,1 @@
+{"version":3,"file":"manager.d.ts","sourceRoot":"","sources":["../../../platform-api/plugin/manager.ts"],"names":[],"mappings":"AAIA,qBAAa,aAAa;IACxB,QAAQ,IAAI,IAAI;IAUhB,MAAM,CAAC,EAAE,EAAE,MAAM,GAAG;QAAE,OAAO,EAAE,OAAO,CAAA;KAAE;IAWxC,OAAO,CAAC,EAAE,EAAE,MAAM,GAAG;QAAE,OAAO,EAAE,OAAO,CAAA;KAAE;CAU1C"}

@@ -4,54 +4,38 @@ node_modules/
 # Build output
 dist/
 
-# Environment
-.env
-.env.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Logs
-logs/
-*.log
+# Portable Node.js runtime
+runtime/
 
 # Runtime data
 data/
 cache/
 temp/
-
-# OpenClaw Runtime (separate download)
-app/openclaw/
-
-# Portable Node.js runtime
-runtime/
+logs/
 
 # Update downloads
 update/
-
-# OpenClaw dependencies
-openclaw/node_modules/
-openclaw/packages/*/dist/
-openclaw/dist-runtime/
 
 # Auto-generated config state
 config/state/
 config/agents/
 config/identity/
+config/logs/
 
-# OpenClaw dist (build output)
-openclaw/dist/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
-# pnpm store
-node_modules/.pnpm-store/
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# OpenClaw workspace node_modules (hoisted)
+# OpenClaw workspace node_modules
+openclaw/node_modules/
 openclaw/extensions/*/node_modules/
+openclaw/packages/*/dist/
+openclaw/dist-runtime/
+openclaw/dist/

@@ -1,5 +1,5 @@
 @echo off
-title ¶¤¸çÁªÃË AI ÖÇÅÌ - CLI
+title ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½ - CLI
 
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
@@ -8,14 +8,8 @@ set "ROOT=%ROOT:~0,-1%"
 set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%PATH%"
 set "NODE_PATH=%ROOT%\runtime\node_modules"
 
-:: Load OpenClaw if present
-if exist "%ROOT%\app\openclaw\" (
-    set "PATH=%ROOT%\app\openclaw;%PATH%"
-)
-
-echo [¶¤¸çÁªÃË AI ÖÇÅÌ] Portable environment loaded
+echo [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½] Portable environment loaded
 echo   Runtime: %ROOT%\runtime
-echo   OpenClaw: %ROOT%\app\openclaw
 echo   Config: %ROOT%\config
 echo   Workspace: %ROOT%\workspace
 echo.

@@ -1,18 +1,18 @@
 @echo off
-title ¶¤¸çÁªÃË AI ÖÇÅÌ - Diagnose
+title ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½ - Diagnose
 
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
 echo ============================================
-echo   ¶¤¸çÁªÃË AI ÖÇÅÌ - System Diagnose
+echo   ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AI ï¿½ï¿½ï¿½ï¿½ - System Diagnose
 echo ============================================
 echo.
 
 :: 1. Directory structure check
 echo [1/6] Directory structure...
 for %%d in (
-    "app\openclaw" "runtime" "config" "workspace"
+    "runtime" "config" "workspace"
     "skills" "plugins" "data" "cache" "logs"
     "temp" "update" "assets" "openclaw"
 ) do (
@@ -65,15 +65,10 @@ echo.
 
 :: 5. OpenClaw Runtime
 echo [5/6] OpenClaw Runtime...
-if exist "%ROOT%\app\openclaw\" (
-    echo   [OK] app\openclaw\ exists
-    dir /b "%ROOT%\app\openclaw\" 2>nul | findstr /r . >nul && (
-        for /f "tokens=*" %%v in ('"%ROOT%\app\openclaw\opencode.exe" --version 2^>nul') do echo   [OK] opencode %%v
-    ) || (
-        echo   [--] Directory is empty
-    )
+if exist "%ROOT%\openclaw\openclaw.mjs" (
+    echo   [OK] openclaw.mjs found
 ) else (
-    echo   [--] app\openclaw\ missing
+    echo   [--] openclaw\openclaw.mjs missing
 )
 echo.
 

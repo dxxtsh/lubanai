@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-13T19:27:27.116Z",
+  "reason": "gateway.crash_loop_breaker",
+  "process": {
+    "pid": 26064,
+    "platform": "win32",
+    "arch": "x64",
+    "node": "24.15.0",
+    "uptimeMs": 14850
+  },
+  "host": {
+    "hostname": "<redacted-hostname>"
+  },
+  "error": {
+    "name": "Error",
+    "message": "gateway restart-loop breaker tripped: 3 unclean boot(s) within 300000ms; suppressing channel/provider account auto-start. Inspect the stability bundle and fix the startup crash before restarting the service."
+  },
+  "snapshot": {
+    "generatedAt": "2026-07-13T19:27:27.117Z",
+    "capacity": 1000,
+    "count": 0,
+    "dropped": 0,
+    "events": [],
+    "summary": {
+      "byType": {}
+    }
+  }
+}
