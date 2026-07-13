@@ -65,7 +65,7 @@ echo.
 
 :: 5. OpenClaw Runtime
 echo [5/6] OpenClaw Runtime...
-if exist "%ROOT%\openclaw\openclaw.mjs" (
+if exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
     echo   [OK] openclaw.mjs found
 ) else (
     echo   [--] openclaw\openclaw.mjs missing

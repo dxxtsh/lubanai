@@ -33,9 +33,3 @@ config/logs/
 Thumbs.db
 desktop.ini
 
-# OpenClaw workspace node_modules
-openclaw/node_modules/
-openclaw/extensions/*/node_modules/
-openclaw/packages/*/dist/
-openclaw/dist-runtime/
-openclaw/dist/

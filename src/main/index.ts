@@ -29,8 +29,8 @@ const nodeBin = isPackaged
   ? path.join(process.resourcesPath, 'runtime', 'node.exe')
   : path.join(appRoot, 'runtime', 'node.exe');
 
-// OpenClaw core location (openclaw.mjs)
-const openclawPath = path.join(appRoot, 'openclaw');
+// OpenClaw core location (node_modules/openclaw/openclaw.mjs)
+const openclawPath = path.join(appRoot, 'node_modules', 'openclaw');
 const openclawMjs = path.join(openclawPath, 'openclaw.mjs');
 
 // Portable data paths
