@@ -46,6 +46,8 @@ if not exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
     )
 
     cd /d "%ROOT%"
+    set "PATH=%ROOT%\runtime;%PATH%"
+    set "ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/"
     call "%ROOT%\runtime\npm.cmd" install --no-optional --no-audit --no-fund
     if errorlevel 1 (
         echo [FAIL] Dependency installation failed
