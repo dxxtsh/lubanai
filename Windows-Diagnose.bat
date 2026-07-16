@@ -1,20 +1,24 @@
 @echo off
-title �������� AI ���� - Diagnose
+title LubanAI Disk - Diagnose
 
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
+:: Use project config
+set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
+set "OPENCLAW_HOME=%ROOT%"
+set "OPENCLAW_STATE_DIR=%ROOT%\config"
+
 echo ============================================
-echo   �������� AI ���� - System Diagnose
+echo   LubanAI Disk - System Diagnose
 echo ============================================
 echo.
 
 :: 1. Directory structure check
 echo [1/6] Directory structure...
 for %%d in (
-    "runtime" "config" "workspace"
-    "skills" "plugins" "data" "cache" "logs"
-    "temp" "update" "assets" "openclaw"
+    "runtime" "config" "workspace" "skills"
+    "plugins" "data" "cache" "logs" "assets"
 ) do (
     if exist "%ROOT%\%%~d\" (
         echo   [OK] %%~d
@@ -27,49 +31,41 @@ echo.
 :: 2. Node.js runtime
 echo [2/6] Node.js runtime...
 if exist "%ROOT%\runtime\node.exe" (
-    for /f "tokens=*" %%v in ('"%ROOT%\runtime\node.exe" --version 2^>nul') do echo   [OK] %%v
+    for /f "tokens=*" %%v in ('"%ROOT%\runtime\node.exe" --version 2^>nul') do echo   [OK] Node.js %%v
 ) else (
     echo   [--] Not found
 )
 echo.
 
 :: 3. Config files
-echo [3/6] Config files...
-for %%f in (
-    "config\lubanai.json"
-    "config\provider.json"
-    "config\agents.json"
-    "config\workspace.json"
-    "config\skills.json"
-    "config\plugins.json"
-    "config\logging.json"
-) do (
-    if exist "%ROOT%\%%~f" (
-        echo   [OK] %%~f
-    ) else (
-        echo   [--] %%~f (not found)
-    )
-)
-echo.
-
-:: 4. Workspace
-echo [4/6] Workspace...
-set WS_COUNT=0
-if exist "%ROOT%\workspace\" (
-    for /d %%d in ("%ROOT%\workspace\*") do set /a WS_COUNT+=1
-    echo   [OK] %WS_COUNT% workspace(s)
+echo [3/6] Configuration...
+if exist "%ROOT%\config\openclaw.json" (
+    echo   [OK] config\openclaw.json
+    for /f "tokens=*" %%v in ('"%ROOT%\runtime\node.exe" -e "console.log(JSON.stringify(require('%ROOT:\=\\%config\\openclaw.json'),null,2))" 2^>nul') do echo   %%v
 ) else (
-    echo   [--] workspace dir missing
+    echo   [--] config\openclaw.json (missing)
 )
 echo.
 
-:: 5. OpenClaw Runtime
-echo [5/6] OpenClaw Runtime...
+:: 4. OpenClaw Runtime
+echo [4/6] OpenClaw runtime...
 if exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
     echo   [OK] openclaw.mjs found
+    for /f "tokens=*" %%v in ('"%ROOT%\runtime\node.exe" "%ROOT%\node_modules\openclaw\openclaw.mjs" --version 2^>nul') do echo   Version: %%v
 ) else (
-    echo   [--] openclaw\openclaw.mjs missing
+    echo   [--] openclaw.mjs missing
 )
+echo.
+
+:: 5. Environment variables
+echo [5/6] Environment...
+echo   OPENCLAW_HOME=%OPENCLAW_HOME%
+echo   OPENCLAW_CONFIG_PATH=%OPENCLAW_CONFIG_PATH%
+if exist "%ROOT%\runtime\node.exe" (
+    set
+) >nul
+echo.
+echo   OPENCLAW_HOME is set to project: yes
 echo.
 
 :: 6. System info

@@ -20,6 +20,7 @@ config/state/
 config/agents/
 config/identity/
 config/logs/
+config/skill-workshop/
 
 # IDE
 .idea/

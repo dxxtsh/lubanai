@@ -4,6 +4,11 @@ title LubanAI Disk - Setup
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
+:: Isolate OpenClaw to project directory
+set "OPENCLAW_HOME=%ROOT%"
+set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
+set "OPENCLAW_STATE_DIR=%ROOT%\config"
+
 echo ============================================
 echo   LubanAI Disk - Portable Setup
 echo ============================================

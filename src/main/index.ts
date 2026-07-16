@@ -75,6 +75,42 @@ function getConfig(): any {
   }
 }
 
+function ensureConfigStructure(): void {
+  try {
+    let config = getConfig();
+    let changed = false;
+
+    // Ensure gateway.mode = "local" (migration from old configs)
+    if (!config.gateway) {
+      config.gateway = {};
+      changed = true;
+    }
+    if (!config.gateway.mode) {
+      config.gateway.mode = 'local';
+      changed = true;
+    }
+
+    // Ensure auth token exists
+    if (!config.gateway.auth) {
+      config.gateway.auth = { token: 'lubanai-disk-token' };
+      changed = true;
+    }
+
+    // Ensure workspace config if agent defaults exist but workspace missing
+    if (!config.workspace) {
+      config.workspace = { rootDir: path.join(appRoot, 'workspace') };
+      changed = true;
+    }
+
+    if (changed) {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+      console.log(`[${APP_NAME}] Config structure validated/updated`);
+    }
+  } catch (e) {
+    console.error(`[${APP_NAME}] Failed to validate config structure:`, e);
+  }
+}
+
 function hasModelConfigured(): boolean {
   const config = getConfig();
   if (config.agents?.defaults?.model?.primary) return true;
@@ -243,7 +279,7 @@ function startGateway(port: number): Promise<number> {
       gatewayReady = false;
     });
 
-    // Poll for gateway readiness
+    // Poll for gateway readiness (HTTP + WebSocket)
     const startTime = Date.now();
     const checkReady = () => {
       if (Date.now() - startTime > GATEWAY_STARTUP_TIMEOUT) {
@@ -252,10 +288,45 @@ function startGateway(port: number): Promise<number> {
       }
 
       const req = http.get(`http://127.0.0.1:${port}/`, (res) => {
-        gatewayReady = true;
-        gatewayPort = port;
-        console.log(`[${APP_NAME}] Gateway ready on port ${port}`);
-        resolve(port);
+        // HTTP responds - now check WebSocket
+        const socket = net.connect(port, '127.0.0.1', () => {
+          const upgradeReq = [
+            'GET / HTTP/1.1',
+            'Host: 127.0.0.1:' + port,
+            'Upgrade: websocket',
+            'Connection: Upgrade',
+            'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+            'Sec-WebSocket-Version: 13',
+            '',
+            '',
+          ].join('\r\n');
+
+          let wsResponded = false;
+          socket.write(upgradeReq);
+          socket.once('data', (data) => {
+            const response = data.toString();
+            if (response.includes('101') || response.includes('200')) {
+              wsResponded = true;
+              socket.destroy();
+              gatewayReady = true;
+              gatewayPort = port;
+              console.log(`[${APP_NAME}] Gateway ready on port ${port}`);
+              resolve(port);
+            }
+          });
+          socket.on('error', () => { /* fall through */ });
+          setTimeout(() => {
+            socket.destroy();
+            if (!wsResponded) {
+              // HTTP works but WebSocket didn't upgrade - still mark as ready
+              gatewayReady = true;
+              gatewayPort = port;
+              console.log(`[${APP_NAME}] Gateway ready (HTTP only) on port ${port}`);
+              resolve(port);
+            }
+          }, 1000);
+        });
+        socket.on('error', () => setTimeout(checkReady, 500));
       });
 
       req.on('error', () => setTimeout(checkReady, 500));
@@ -419,6 +490,7 @@ app.whenReady().then(async () => {
   console.log(`[${APP_NAME}] starting...`);
 
   ensureConfig();
+  ensureConfigStructure();
   createMenu();
   setupIPC();
   createWindow();
@@ -438,10 +510,10 @@ app.whenReady().then(async () => {
     }
   } catch (err: any) {
     console.error(`[${APP_NAME}] Failed to start gateway:`, err);
-    dialog.showErrorBox(
-      `${APP_NAME} - 启动失败`,
-      `无法启动 OpenClaw 智能体引擎。\n\n错误信息：${err.message}\n\n请检查内核程序或端口占用情况。`
-    );
+    const msg = err.message.includes('timeout')
+      ? `OpenClaw 网关启动超时（${GATEWAY_STARTUP_TIMEOUT / 1000}秒）。\n\n请检查端口 ${DEFAULT_PORT}-${MAX_PORT} 是否被占用，或内核程序是否异常。`
+      : `无法启动 OpenClaw 智能体引擎。\n\n错误信息：${err.message}\n\n请检查内核程序或端口占用情况。`;
+    dialog.showErrorBox(`${APP_NAME} - 启动失败`, msg);
   }
 });
 

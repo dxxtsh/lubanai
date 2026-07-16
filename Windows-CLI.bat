@@ -8,31 +8,33 @@ set "ROOT=%ROOT:~0,-1%"
 set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%ROOT%\node_modules\.bin;%PATH%"
 set "NODE_PATH=%ROOT%\runtime\node_modules"
 
+:: Isolate OpenClaw to project directory
+set "OPENCLAW_HOME=%ROOT%"
+set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
+set "OPENCLAW_STATE_DIR=%ROOT%\config"
+set "OPENCLAW_EMBEDDED_IN=LubanAI Disk"
+set "OPENCLAW_DISABLE_BONJOUR=1"
+
 echo ============================================
-echo   LubanAI Disk - 命令行界面
-echo   输入 openclaw ^<命令^> 执行操作
+echo   LubanAI Disk - CLI
+echo   All openclaw commands use project config
 echo ============================================
 echo.
-echo 常用命令:
+echo Commands:
+echo   openclaw --help           Full command list
+echo   openclaw <cmd> --help     Subcommand help
 echo.
-echo   openclaw --help          查看所有命令（英文）
-echo   help-cn                  查看中文命令帮助
-echo   openclaw ^<命令^> --help  查看某个命令的帮助
+echo   openclaw onboard         First-time setup
+echo   openclaw configure       Change configuration
+echo   openclaw status          Check health and status
+echo   openclaw doctor --fix    Diagnose and repair
+echo   openclaw gateway run     Start gateway
+echo   openclaw tui             Terminal UI
 echo.
-echo   openclaw onboard         首次配置向导
-echo   openclaw configure       修改配置
-echo   openclaw status          查看状态
-echo   openclaw doctor --fix    诊断修复
+echo   openclaw channels add    Add chat channel
+echo   openclaw models status   Check models
 echo.
-echo   openclaw gateway run     启动网关
-echo   openclaw agent --message "你好"   运行AI对话
-echo   openclaw tui             打开终端界面
-echo.
-echo   openclaw channels add    添加频道
-echo   openclaw models status   查看模型状态
-echo   openclaw update          检查更新
-echo.
-echo 提示: exit 退出
+echo   exit                     Close this window
 echo ============================================
 echo.
 
