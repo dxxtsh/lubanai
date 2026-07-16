@@ -4,5 +4,8 @@
     "auth": {
       "token": "lubanai-disk-token"
     }
+  },
+  "workspace": {
+    "rootDir": "D:\\work\\claudecode\\lubanai\\workspace"
   }
 }
