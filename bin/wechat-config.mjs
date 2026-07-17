@@ -9,6 +9,29 @@ import { createRequire } from 'module';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, '..');
 const resourcesPath = path.join(appRoot, 'resources');
+const configDir = path.join(appRoot, 'config');
+const configPath = path.join(configDir, 'openclaw.json');
+
+function getConfig() {
+  try { return JSON.parse(fs.readFileSync(configPath, 'utf-8')); }
+  catch { return { gateway: { auth: { token: 'lubanai-disk-token' }, mode: 'local' } }; }
+}
+
+function saveConfig(cfg) {
+  fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8');
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => { try { resolve(body ? JSON.parse(body) : {}); } catch (e) { reject(e); } });
+    req.on('error', reject);
+  });
+}
+
+// Fields that are safe to import from another openclaw config
+const IMPORTABLE_FIELDS = ['channels', 'skills', 'models', 'plugins', 'extensions'];
 
 const _require = createRequire(fileURLToPath(import.meta.url));
 function getQRCodeLib() {
@@ -101,6 +124,60 @@ const server = http.createServer(async (req, res) => {
     activeWeChatLogins.clear();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  if (url.pathname === '/api/config' && req.method === 'GET') {
+    const cfg = getConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(cfg));
+    return;
+  }
+  if (url.pathname === '/api/config' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const existing = getConfig();
+      const merged = Object.assign(existing, body);
+      saveConfig(merged);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (err) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/config/import' && req.method === 'POST') {
+    try {
+      const imported = await readBody(req);
+      const existing = getConfig();
+      let merged = 0;
+      for (const key of IMPORTABLE_FIELDS) {
+        if (imported[key] && Object.keys(imported[key]).length > 0) {
+          existing[key] = imported[key];
+          merged++;
+        }
+      }
+      saveConfig(existing);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, imported: merged, fields: IMPORTABLE_FIELDS.filter(k => imported[k]) }));
+    } catch (err) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/config/export' && req.method === 'GET') {
+    const cfg = getConfig();
+    const exportData = {};
+    for (const key of IMPORTABLE_FIELDS) {
+      if (cfg[key]) exportData[key] = cfg[key];
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Content-Disposition': 'attachment; filename="lubanai-channels.json"',
+    });
+    res.end(JSON.stringify(exportData, null, 2));
     return;
   }
 
