@@ -29,6 +29,10 @@ const nodeBin = isPackaged
   ? path.join(process.resourcesPath, 'runtime', 'node.exe')
   : path.join(appRoot, 'runtime', 'node.exe');
 
+// OpenClaw CLI wrapper (bin/openclaw.cmd) for standalone gateway usage
+const openclawCmd = path.join(appRoot, 'bin', 'openclaw.cmd');
+const hasOpenclawCmd = fs.existsSync(openclawCmd);
+
 // OpenClaw core location (node_modules/openclaw/openclaw.mjs)
 const openclawPath = path.join(appRoot, 'node_modules', 'openclaw');
 const openclawMjs = path.join(openclawPath, 'openclaw.mjs');
@@ -230,6 +234,9 @@ function startGateway(port: number): Promise<number> {
       fs.mkdirSync(compileCacheDir, { recursive: true });
     } catch {}
 
+    const localTemp = path.join(appRoot, 'temp');
+    try { fs.mkdirSync(localTemp, { recursive: true }); } catch {}
+
     const env = {
       ...process.env,
       OPENCLAW_HOME: appRoot,
@@ -237,18 +244,18 @@ function startGateway(port: number): Promise<number> {
       OPENCLAW_CONFIG_PATH: configPath,
       OPENCLAW_EMBEDDED_IN: APP_NAME,
       NODE_COMPILE_CACHE: compileCacheDir,
-      OPENCLAW_DISABLE_BONJOUR: '1', // Disable bonjour mdns discovery on local Windows
+      TMP: localTemp,
+      TEMP: localTemp,
+      OPENCLAW_DISABLE_BONJOUR: '1',
     };
 
-    // Run openclaw.mjs via portable Node.js using gateway run command
-    gatewayProcess = spawn(nodeBin, [
-      openclawMjs,
-      'gateway',
-      'run',
-      '--allow-unconfigured',
-      '--force',
-      '--port', String(port),
-    ], {
+    // Run gateway via bin/openclaw.cmd wrapper (standalone, no system PATH needed)
+    const gatewayBin = hasOpenclawCmd ? openclawCmd : nodeBin;
+    const gatewayArgs = hasOpenclawCmd
+      ? ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)]
+      : [openclawMjs, 'gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)];
+
+    gatewayProcess = spawn(gatewayBin, gatewayArgs, {
       env,
       cwd: openclawPath,
       stdio: ['pipe', 'pipe', 'pipe'],
