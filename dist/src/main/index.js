@@ -229,6 +229,7 @@ function startGateway(port) {
             env,
             cwd: openclawPath,
             stdio: ['pipe', 'pipe', 'pipe'],
+            shell: hasOpenclawCmd,
         });
         gatewayProcess.stdout?.on('data', (data) => {
             const msg = data.toString().trim();
