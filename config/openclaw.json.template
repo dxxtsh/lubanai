@@ -1,0 +1,8 @@
+{
+    "gateway": {
+        "auth": {
+            "token": "lubanai-disk-token"
+        },
+        "mode": "local"
+    }
+}

@@ -12,7 +12,19 @@ const resourcesPath = path.join(appRoot, 'resources');
 const configDir = path.join(appRoot, 'config');
 const configPath = path.join(configDir, 'openclaw.json');
 
+function ensureConfig() {
+  if (!fs.existsSync(configPath)) {
+    const template = configPath + '.template';
+    if (fs.existsSync(template)) { fs.copyFileSync(template, configPath); }
+    else {
+      fs.writeFileSync(configPath, JSON.stringify(
+        { gateway: { mode: 'local', auth: { token: 'lubanai-disk-token' } } }, null, 2
+      ));
+    }
+  }
+}
 function getConfig() {
+  ensureConfig();
   try { return JSON.parse(fs.readFileSync(configPath, 'utf-8')); }
   catch { return { gateway: { auth: { token: 'lubanai-disk-token' }, mode: 'local' } }; }
 }

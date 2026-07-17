@@ -60,14 +60,17 @@ function ensureConfig(): void {
     fs.mkdirSync(path.join(appRoot, 'data', 'backups'), { recursive: true });
 
     if (!fs.existsSync(configPath)) {
-      const defaultConfig = {
-        gateway: {
-          mode: 'local',
-          auth: { token: 'lubanai-disk-token' },
-        },
-      };
-      fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-      console.log(`[${APP_NAME}] Created default config at ${configPath}`);
+      const templatePath = configPath + '.template';
+      if (fs.existsSync(templatePath)) {
+        fs.copyFileSync(templatePath, configPath);
+        console.log(`[${APP_NAME}] Created config from template`);
+      } else {
+        const defaultConfig = {
+          gateway: { mode: 'local', auth: { token: 'lubanai-disk-token' } },
+        };
+        fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+        console.log(`[${APP_NAME}] Created default config`);
+      }
     }
   } catch (e) {
     console.error(`[${APP_NAME}] Failed to ensure config directory:`, e);

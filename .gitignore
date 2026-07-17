@@ -16,6 +16,7 @@ logs/
 update/
 
 # Auto-generated config state
+config/openclaw.json
 config/state/
 config/agents/
 config/identity/
