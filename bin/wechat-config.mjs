@@ -30,8 +30,8 @@ function readBody(req) {
   });
 }
 
-// Fields to skip on import/export — gateway is install-specific, meta is version-specific
-const SKIP_ON_IMPORT = ['gateway'];
+// Fields to skip — gateway is install-specific, version fields cause compat issues
+const SKIP_ON_IMPORT = ['gateway', '_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'];
 const SKIP_ON_EXPORT = ['gateway', '_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'];
 
 const _require = createRequire(fileURLToPath(import.meta.url));
