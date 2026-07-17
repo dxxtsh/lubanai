@@ -96,11 +96,7 @@ function ensureConfigStructure(): void {
       changed = true;
     }
 
-    // Ensure workspace config if agent defaults exist but workspace missing
-    if (!config.workspace) {
-      config.workspace = { rootDir: path.join(appRoot, 'workspace') };
-      changed = true;
-    }
+
 
     if (changed) {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');

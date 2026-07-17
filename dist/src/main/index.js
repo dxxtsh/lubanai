@@ -83,11 +83,7 @@ function ensureConfigStructure() {
             config.gateway.auth = { token: 'lubanai-disk-token' };
             changed = true;
         }
-        // Ensure workspace config if agent defaults exist but workspace missing
-        if (!config.workspace) {
-            config.workspace = { rootDir: path.join(appRoot, 'workspace') };
-            changed = true;
-        }
+
         if (changed) {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
             console.log(`[${APP_NAME}] Config structure validated/updated`);

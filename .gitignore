@@ -21,6 +21,8 @@ config/agents/
 config/identity/
 config/logs/
 config/skill-workshop/
+config/completions/
+config/openclaw.json.bak
 
 # IDE
 .idea/
