@@ -61,6 +61,33 @@ lubanai/
 
 换电脑同理。运行数据保存在 U 盘内，不残留任何文件。
 
+## 渠道配置
+
+支持接入多个聊天渠道，可在配置页面（Step 3）或独立工具中配置：
+
+| 渠道 | 方式 | 说明 |
+|------|------|------|
+| 💬 个人微信 | iLink 扫码 | 通过 `@tencent-weixin/openclaw-weixin` 插件扫码登录 |
+| 🏢 企业微信 | Bot ID + Secret | 企微群聊应用助手 |
+| 📘 飞书 / Lark | App ID + Secret | 飞书群聊与单聊应用 |
+| 🤖 Telegram | Bot Token | 官方 Bot API |
+| 🐧 QQ 机器人 | App ID + Secret | QQ 开放平台 |
+
+### 独立渠道配置工具
+
+不需要启动完整应用，双击 **`Windows-渠道配置.bat`** 即可打开浏览器独立配置渠道。
+
+### 导入 / 导出
+
+支持全量配置迁移，方便从其他 OpenClaw 安装迁移过来：
+
+- **📤 导出配置** (`lubanai-config.json`) → channels / models / agents / plugins / skills 条目的启用状态（跳过 gateway 和版本字段）
+- **📥 导入配置** → 自动备份原配置，合并导入可移植字段，兼容不同 OpenClaw 版本
+- **📤 导出 Skills** (`lubanai-skills.json`) → 打包 `skills/` 目录下所有 .md 文件
+- **📥 导入 Skills** → 解包到 `skills/` 目录
+
+> 迁移只需两个文件：`lubanai-config.json` + `lubanai-skills.json`（如有自定义 skill）
+
 ## 命令行工具
 
 双击 `Windows-CLI.bat` 进入便携命令行环境，可用 `node`、`npm`、`npx` 命令。
@@ -68,6 +95,18 @@ lubanai/
 ## 诊断
 
 运行 `Windows-Diagnose.bat` 检查环境状态。
+
+## 目录结构补充
+
+```
+lubanai/
+├── ...
+├── bin/                     # 独立工具脚本
+│   └── wechat-config.mjs    # 渠道配置独立 HTTP 服务
+├── skills/                  # 技能 .md 文件（可热加载）
+├── Windows-渠道配置.bat       # 独立渠道配置工具
+└── ...
+```
 
 ## License
 
