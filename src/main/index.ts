@@ -90,7 +90,10 @@ function ensureConfigStructure(): void {
     let config = getConfig();
     let changed = false;
 
-    // Ensure gateway.mode = "local" (migration from old configs)
+    // If config has user data beyond gateway, skip all migrations
+    const userKeys = Object.keys(config).filter(k => k !== 'gateway');
+    if (userKeys.length > 0) return;
+
     if (!config.gateway) {
       config.gateway = {};
       changed = true;
@@ -99,14 +102,10 @@ function ensureConfigStructure(): void {
       config.gateway.mode = 'local';
       changed = true;
     }
-
-    // Ensure auth token exists
     if (!config.gateway.auth) {
       config.gateway.auth = { token: 'lubanai-disk-token' };
       changed = true;
     }
-
-
 
     if (changed) {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
