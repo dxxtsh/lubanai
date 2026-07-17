@@ -1,9 +1,13 @@
 {
   "gateway": {
-    "mode": "local",
     "auth": {
+      "mode": "token",
       "token": "lubanai-disk-token"
-    }
+    },
+    "remote": {
+      "token": "lubanai-disk-token"
+    },
+    "mode": "local"
   },
   "skills": {
     "entries": {
@@ -98,6 +102,13 @@
   },
   "meta": {
     "lastTouchedVersion": "2026.7.1",
-    "lastTouchedAt": "2026-07-17T09:42:10.174Z"
-  }
+    "lastTouchedAt": "2026-07-17T11:07:32.712Z"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+
 }
