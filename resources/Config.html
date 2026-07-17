@@ -395,10 +395,13 @@ body {
                 <p style="color: #64748b; font-size: 0.8em; margin-top: 10px;">点击后程序会自动加载完成并登录官方对话页面，且自动同步通信渠道</p>
             </div>
 
-            <div class="io-bar" style="display:flex; gap:8px; justify-content:center; margin-top:16px; padding:12px; background:rgba(30,41,59,0.3); border-radius:10px;">
-                <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()" style="padding:6px 14px; font-size:0.82em;">📥 导入配置</button>
-                <button class="btn btn-secondary" onclick="exportConfig()" style="padding:6px 14px; font-size:0.82em;">📤 导出配置</button>
+            <div class="io-bar" style="display:flex; gap:8px; justify-content:center; margin-top:16px; padding:12px; background:rgba(30,41,59,0.3); border-radius:10px; flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()" style="padding:6px 12px; font-size:0.78em;">📥 导入配置</button>
+                <button class="btn btn-secondary" onclick="exportConfig()" style="padding:6px 12px; font-size:0.78em;">📤 导出配置</button>
+                <button class="btn btn-secondary" onclick="exportSkills()" style="padding:6px 12px; font-size:0.78em;">📤 导出 Skills</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('importSkillsInput').click()" style="padding:6px 12px; font-size:0.78em;">📥 导入 Skills</button>
                 <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(event)">
+                <input type="file" id="importSkillsInput" accept=".json" style="display:none" onchange="handleImportSkills(event)">
             </div>
             <div id="importResult" style="text-align:center; color:#94a3b8; font-size:0.78em; margin-top:6px;"></div>
 
@@ -766,6 +769,42 @@ async function exportConfig() {
   } catch(e) {
     showToast('❌ 导出失败: ' + e.message, true);
   }
+}
+
+// ── Skills Import / Export ──
+async function exportSkills() {
+  try {
+    const res = await fetch('/api/config/export/skills');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lubanai-skills.json';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('✅ 已导出 Skills');
+  } catch(e) {
+    showToast('❌ 导出失败: ' + e.message, true);
+  }
+}
+async function handleImportSkills(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    const res = await fetch('/api/config/import/skills', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(json)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`✅ 已导入 ${data.count} 个 skill 文件`);
+    } else {
+      showToast('❌ 导入失败: ' + (data.error || '未知错误'), true);
+    }
+  } catch(e) {
+    showToast('❌ 文件解析失败: ' + e.message, true);
+  }
+  event.target.value = '';
 }
 
 async function cancelWeChatLogin() {

@@ -323,6 +323,49 @@ function startConfigServer(): Promise<number> {
         return;
       }
 
+      // Skills import/export
+      if (url.pathname === '/api/config/export/skills' && req.method === 'GET') {
+        try {
+          const skillsDir = path.join(appRoot, 'skills');
+          const files: Record<string, string> = {};
+          if (fs.existsSync(skillsDir)) {
+            const walk = (dir: string, prefix: string) => {
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                const key = prefix ? `${prefix}/${entry.name}` : entry.name;
+                if (entry.isDirectory()) walk(full, key);
+                else if (entry.name !== '.gitkeep') files[key] = fs.readFileSync(full, 'utf-8');
+              }
+            };
+            walk(skillsDir, '');
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="lubanai-skills.json"' });
+          res.end(JSON.stringify(files, null, 2));
+        } catch (e: any) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+        return;
+      }
+      if (url.pathname === '/api/config/import/skills' && req.method === 'POST') {
+        let body = '';
+        req.on('data', (chunk) => (body += chunk));
+        req.on('end', () => {
+          try {
+            const imported = JSON.parse(body);
+            const skillsDir = path.join(appRoot, 'skills');
+            fs.mkdirSync(skillsDir, { recursive: true });
+            let count = 0;
+            for (const [filePath, content] of Object.entries(imported)) {
+              const target = path.join(skillsDir, filePath);
+              fs.mkdirSync(path.dirname(target), { recursive: true });
+              fs.writeFileSync(target, content, 'utf-8');
+              count++;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, count }));
+          } catch (e: any) { res.writeHead(400); res.end(JSON.stringify({ error: e.message })); }
+        });
+        return;
+      }
+
       // Config import/export
       if (url.pathname === '/api/config/import' && req.method === 'POST') {
         let body = '';

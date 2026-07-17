@@ -175,6 +175,46 @@ const server = http.createServer(async (req, res) => {
     }
     return;
   }
+  if (url.pathname === '/api/config/export/skills' && req.method === 'GET') {
+    try {
+      const skillsDir = path.join(appRoot, 'skills');
+      const files = {};
+      if (fs.existsSync(skillsDir)) {
+        const walk = (dir, prefix) => {
+          for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            const key = prefix ? `${prefix}/${entry.name}` : entry.name;
+            if (entry.isDirectory()) walk(full, key);
+            else if (entry.name !== '.gitkeep') files[key] = fs.readFileSync(full, 'utf-8');
+          }
+        };
+        walk(skillsDir, '');
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Content-Disposition': 'attachment; filename="lubanai-skills.json"',
+      });
+      res.end(JSON.stringify(files, null, 2));
+    } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: err.message })); }
+    return;
+  }
+  if (url.pathname === '/api/config/import/skills' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const skillsDir = path.join(appRoot, 'skills');
+      fs.mkdirSync(skillsDir, { recursive: true });
+      let count = 0;
+      for (const [filePath, content] of Object.entries(body)) {
+        const target = path.join(skillsDir, filePath);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, content, 'utf-8');
+        count++;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, count }));
+    } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: err.message })); }
+    return;
+  }
   if (url.pathname === '/api/config/export' && req.method === 'GET') {
     const cfg = getConfig();
     // Only export portable config (skip install-specific fields)
