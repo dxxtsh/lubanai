@@ -299,6 +299,7 @@ function startConfigServer() {
                 req.on('end', () => {
                     try {
                         const imported = JSON.parse(body);
+                        delete imported.gateway;
                         for (const key of ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'])
                             delete imported[key];
                         const bakPath = configPath + '.bak.' + Date.now();
@@ -324,6 +325,7 @@ function startConfigServer() {
             if (url.pathname === '/api/config/export' && req.method === 'GET') {
                 try {
                     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                    delete cfg.gateway;
                     for (const key of ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'])
                         delete cfg[key];
                     res.writeHead(200, {

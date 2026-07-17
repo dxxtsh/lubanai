@@ -30,8 +30,9 @@ function readBody(req) {
   });
 }
 
-// Version-specific metadata fields to strip on export/import for cross-version compat
-const VERSION_FIELDS = ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'];
+// Fields to skip on import/export — gateway is install-specific, meta is version-specific
+const SKIP_ON_IMPORT = ['gateway'];
+const SKIP_ON_EXPORT = ['gateway', '_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'];
 
 const _require = createRequire(fileURLToPath(import.meta.url));
 function getQRCodeLib() {
@@ -150,12 +151,12 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/config/import' && req.method === 'POST') {
     try {
       const imported = await readBody(req);
-      // Backup current config before import
+      // Backup before import
       const bakPath = configPath + '.bak.' + Date.now();
-      fs.copyFileSync(configPath, bakPath);
-      // Strip version-specific fields from imported data
-      for (const key of VERSION_FIELDS) delete imported[key];
-      // Merge: imported replaces matching keys, existing handles schema defaults
+      try { fs.copyFileSync(configPath, bakPath); } catch {}
+      // Skip install-specific fields (gateway, version metadata)
+      for (const key of SKIP_ON_IMPORT) delete imported[key];
+      // Deep merge into existing config
       const existing = getConfig();
       for (const k of Object.keys(imported)) {
         if (typeof imported[k] === 'object' && imported[k] !== null && !Array.isArray(imported[k])) {
@@ -176,8 +177,8 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/api/config/export' && req.method === 'GET') {
     const cfg = getConfig();
-    // Strip version-specific fields for clean export
-    for (const key of VERSION_FIELDS) delete cfg[key];
+    // Only export portable config (skip install-specific fields)
+    for (const key of SKIP_ON_EXPORT) delete cfg[key];
     res.writeHead(200, {
       'Content-Type': 'application/json',
       'Content-Disposition': 'attachment; filename="lubanai-config.json"',
