@@ -10,15 +10,20 @@ echo   LubanAI - Channel Configuration
 echo ========================================
 echo.
 
-where node >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Node.js not found. Please install Node.js first.
-    pause
-    exit /b 1
+set "NODE=node"
+if exist "%ROOT%\runtime\node.exe" set "NODE=%ROOT%\runtime\node.exe"
+if "%NODE%"=="node" (
+    where node >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Node.js not found.
+        echo Please install Node.js, or run setup.bat to download portable Node.js.
+        pause
+        exit /b 1
+    )
 )
 
 echo [OK] Node.js ready
 echo.
 
-node "%ROOT%\bin\wechat-config.mjs"
+"%NODE%" "%ROOT%\bin\wechat-config.mjs"
 pause
