@@ -396,10 +396,11 @@ body {
             </div>
 
             <div class="io-bar" style="display:flex; gap:8px; justify-content:center; margin-top:16px; padding:12px; background:rgba(30,41,59,0.3); border-radius:10px;">
-                <button class="btn btn-secondary" onclick="importConfig()" style="padding:6px 14px; font-size:0.82em;">📥 导入配置</button>
-                <button class="btn btn-secondary" onclick="exportConfig()" style="padding:6px 14px; font-size:0.82em;">📤 导出渠道</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('importFileInput').click()" style="padding:6px 14px; font-size:0.82em;">📥 导入配置</button>
+                <button class="btn btn-secondary" onclick="exportConfig()" style="padding:6px 14px; font-size:0.82em;">📤 导出配置</button>
                 <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(event)">
             </div>
+            <div id="importResult" style="text-align:center; color:#94a3b8; font-size:0.78em; margin-top:6px;"></div>
 
             <div class="btn-row" style="justify-content: center; margin-top: 12px;">
                 <button class="btn btn-secondary" onclick="goStep(1)">返回修改 AI 模型</button>
@@ -729,11 +730,9 @@ function startWeChatPoll() {
 }
 
 // ── Config Import / Export ──
-async function importConfig() {
-  document.getElementById('importFileInput').click();
-}
 async function handleImportFile(event) {
   const file = event.target.files[0];
+  const resultEl = document.getElementById('importResult');
   if (!file) return;
   try {
     const text = await file.text();
@@ -743,14 +742,14 @@ async function handleImportFile(event) {
     });
     const data = await res.json();
     if (data.ok) {
-      const names = data.fields.join(', ');
-      showToast(`✅ 已导入: ${names}`);
-      loadConfig();
+      resultEl.textContent = `✅ 已导入，自动备份: ${data.backup || 'config.bak'}`;
+      showToast('✅ 配置已导入');
+      setTimeout(() => location.reload(), 1000);
     } else {
-      showToast('❌ 导入失败: ' + (data.error || '未知错误'), true);
+      resultEl.textContent = '❌ 导入失败: ' + (data.error || '未知错误');
     }
   } catch(e) {
-    showToast('❌ 文件解析失败: ' + e.message, true);
+    resultEl.textContent = '❌ 文件解析失败: ' + e.message;
   }
   event.target.value = '';
 }
@@ -760,10 +759,10 @@ async function exportConfig() {
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'lubanai-channels.json';
+    a.href = url; a.download = 'lubanai-config.json';
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
-    showToast('✅ 已导出渠道配置');
+    showToast('✅ 已导出完整配置');
   } catch(e) {
     showToast('❌ 导出失败: ' + e.message, true);
   }

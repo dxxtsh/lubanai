@@ -292,6 +292,49 @@ function startConfigServer() {
                 res.end(JSON.stringify({ installed: hasPlugin }));
                 return;
             }
+            // Config import/export
+            if (url.pathname === '/api/config/import' && req.method === 'POST') {
+                let body = '';
+                req.on('data', (chunk) => (body += chunk));
+                req.on('end', () => {
+                    try {
+                        const imported = JSON.parse(body);
+                        for (const key of ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'])
+                            delete imported[key];
+                        const bakPath = configPath + '.bak.' + Date.now();
+                        try { fs.copyFileSync(configPath, bakPath); } catch {}
+                        const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                        for (const k of Object.keys(imported)) {
+                            if (typeof imported[k] === 'object' && imported[k] !== null && !Array.isArray(imported[k])) {
+                                existing[k] = existing[k] || {};
+                                Object.assign(existing[k], imported[k]);
+                            }
+                            else {
+                                existing[k] = imported[k];
+                            }
+                        }
+                        fs.writeFileSync(configPath, JSON.stringify(existing, null, 2), 'utf-8');
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, backup: path.basename(bakPath) }));
+                    }
+                    catch (e) { res.writeHead(400); res.end(JSON.stringify({ error: e.message })); }
+                });
+                return;
+            }
+            if (url.pathname === '/api/config/export' && req.method === 'GET') {
+                try {
+                    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                    for (const key of ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'])
+                        delete cfg[key];
+                    res.writeHead(200, {
+                        'Content-Type': 'application/json',
+                        'Content-Disposition': 'attachment; filename="lubanai-config.json"',
+                    });
+                    res.end(JSON.stringify(cfg, null, 2));
+                }
+                catch (e) { res.writeHead(500); res.end(JSON.stringify({ error: e.message })); }
+                return;
+            }
             const configHtml = path.join(resourcesPath, 'Config.html');
             if (fs.existsSync(configHtml)) {
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

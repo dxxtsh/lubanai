@@ -30,8 +30,8 @@ function readBody(req) {
   });
 }
 
-// Fields that are safe to import from another openclaw config
-const IMPORTABLE_FIELDS = ['channels', 'skills', 'models', 'plugins', 'extensions'];
+// Version-specific metadata fields to strip on export/import for cross-version compat
+const VERSION_FIELDS = ['_version', 'lastTouchedVersion', 'lastTouchedAt', 'meta', 'wizard'];
 
 const _require = createRequire(fileURLToPath(import.meta.url));
 function getQRCodeLib() {
@@ -150,17 +150,24 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/config/import' && req.method === 'POST') {
     try {
       const imported = await readBody(req);
+      // Backup current config before import
+      const bakPath = configPath + '.bak.' + Date.now();
+      fs.copyFileSync(configPath, bakPath);
+      // Strip version-specific fields from imported data
+      for (const key of VERSION_FIELDS) delete imported[key];
+      // Merge: imported replaces matching keys, existing handles schema defaults
       const existing = getConfig();
-      let merged = 0;
-      for (const key of IMPORTABLE_FIELDS) {
-        if (imported[key] && Object.keys(imported[key]).length > 0) {
-          existing[key] = imported[key];
-          merged++;
+      for (const k of Object.keys(imported)) {
+        if (typeof imported[k] === 'object' && imported[k] !== null && !Array.isArray(imported[k])) {
+          existing[k] = existing[k] || {};
+          Object.assign(existing[k], imported[k]);
+        } else {
+          existing[k] = imported[k];
         }
       }
       saveConfig(existing);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, imported: merged, fields: IMPORTABLE_FIELDS.filter(k => imported[k]) }));
+      res.end(JSON.stringify({ ok: true, backup: path.basename(bakPath) }));
     } catch (err) {
       res.writeHead(400);
       res.end(JSON.stringify({ error: err.message }));
@@ -169,15 +176,13 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/api/config/export' && req.method === 'GET') {
     const cfg = getConfig();
-    const exportData = {};
-    for (const key of IMPORTABLE_FIELDS) {
-      if (cfg[key]) exportData[key] = cfg[key];
-    }
+    // Strip version-specific fields for clean export
+    for (const key of VERSION_FIELDS) delete cfg[key];
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Content-Disposition': 'attachment; filename="lubanai-channels.json"',
+      'Content-Disposition': 'attachment; filename="lubanai-config.json"',
     });
-    res.end(JSON.stringify(exportData, null, 2));
+    res.end(JSON.stringify(cfg, null, 2));
     return;
   }
 

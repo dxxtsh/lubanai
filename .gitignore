@@ -36,3 +36,6 @@ config/openclaw.json.bak
 Thumbs.db
 desktop.ini
 
+
+# OpenClaw workspace state.openclaw/
+config/devices/
