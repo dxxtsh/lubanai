@@ -57,6 +57,7 @@ body {
 .tag.cn { background: rgba(129,140,248,0.15); color: #818cf8; }
 .tag.fast { background: rgba(244,114,182,0.15); color: #f472b6; }
 .tag.cheap { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.tag.vision { background: rgba(167,139,250,0.15); color: #a78bfa; }
 .check { position: absolute; top: 12px; right: 14px; color: #38bdf8; font-size: 1.1em; display: none; font-weight: bold; }
 .model-card.selected .check { display: block; }
 
@@ -234,6 +235,12 @@ body {
                 <span class="check">✓</span>
                 <h4>豆包 (字节跳动) <span class="tag cn">国内</span><span class="tag fast">极速</span></h4>
                 <p>doubao-seed-1.6 极速大模型，字节跳动倾力打造</p>
+                <a class="buy-link" href="https://console.volcengine.com/ark" target="_blank">→ 获取 API Key</a>
+            </div>
+            <div class="model-card" data-provider="doubao" data-base="https://ark.cn-beijing.volces.com/api/v3" data-model="doubao-vision-pro-32k-250615">
+                <span class="check">✓</span>
+                <h4>豆包 Vision <span class="tag cn">国内</span><span class="tag vision">视觉</span></h4>
+                <p>doubao-vision-pro-32k，支持图片理解的多模态模型</p>
                 <a class="buy-link" href="https://console.volcengine.com/ark" target="_blank">→ 获取 API Key</a>
             </div>
             <div class="model-card" data-provider="openai" data-base="https://api.openai.com/v1" data-model="gpt-5.4">
