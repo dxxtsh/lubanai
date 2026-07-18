@@ -1,16 +1,23 @@
 @echo off
 title LubanAI Repair
 
+set "ROOT=%~dp0"
+set "ROOT=%ROOT:~0,-1%"
+
+set "OPENCLAW_HOME=%ROOT%"
+set "OPENCLAW_STATE_DIR=%ROOT%\config"
+set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
+
 echo ========================================
 echo   LubanAI Disk - Repair
 echo ========================================
 echo.
 
-call "%~dp0OpenClaw.bat" doctor --fix
+call "%ROOT%\OpenClaw.bat" doctor --fix
 
 echo.
 
-call "%~dp0OpenClaw.bat" config validate
+call "%ROOT%\OpenClaw.bat" config validate
 
 echo.
 echo ========================================
