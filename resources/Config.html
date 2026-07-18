@@ -219,10 +219,10 @@ body {
                 <p>kimi-k2，长上下文能力强，适合超大文档处理</p>
                 <a class="buy-link" href="https://platform.moonshot.cn/" target="_blank">→ 获取 API Key</a>
             </div>
-            <div class="model-card" data-provider="zai" data-base="" data-model="glm-5">
+            <div class="model-card" data-provider="zai" data-base="" data-model="glm-5" data-vision="true">
                 <span class="check">✓</span>
-                <h4>智谱 GLM <span class="tag cn">国内</span><span class="tag free">送额度</span></h4>
-                <p>glm-5，注册即送大额免费额度，学术支持强</p>
+                <h4>智谱 GLM <span class="tag cn">国内</span><span class="tag free">送额度</span><span class="tag vision">视觉</span></h4>
+                <p>glm-5，支持图片理解，注册即送大额免费额度</p>
                 <a class="buy-link" href="https://open.bigmodel.cn/" target="_blank">→ 获取 API Key</a>
             </div>
             <div class="model-card" data-provider="qwen" data-base="https://dashscope.aliyuncs.com/compatible-mode/v1" data-model="qwen-plus">
@@ -243,16 +243,16 @@ body {
                 <p>doubao-vision-pro-32k，支持图片理解的多模态模型</p>
                 <a class="buy-link" href="https://console.volcengine.com/ark" target="_blank">→ 获取 API Key</a>
             </div>
-            <div class="model-card" data-provider="openai" data-base="https://api.openai.com/v1" data-model="gpt-5.4">
+            <div class="model-card" data-provider="openai" data-base="https://api.openai.com/v1" data-model="gpt-5.4" data-vision="true">
                 <span class="check">✓</span>
-                <h4>OpenAI GPT-5 <span class="tag hot">强力</span></h4>
-                <p>GPT-5.4 官方 API，需翻墙环境或国内代理中转</p>
+                <h4>OpenAI GPT-5 <span class="tag hot">强力</span><span class="tag vision">视觉</span></h4>
+                <p>GPT-5.4 官方 API，支持图片理解，需翻墙环境或国内代理中转</p>
                 <a class="buy-link" href="https://platform.openai.com/" target="_blank">→ 获取 API Key</a>
             </div>
-            <div class="model-card" data-provider="anthropic" data-base="https://api.anthropic.com/v1" data-model="claude-opus-4-6">
+            <div class="model-card" data-provider="anthropic" data-base="https://api.anthropic.com/v1" data-model="claude-opus-4-6" data-vision="true">
                 <span class="check">✓</span>
-                <h4>Claude 4.6 <span class="tag hot">逻辑</span></h4>
-                <p>Claude Opus 4.6 / Sonnet 4.6，代码编写逻辑超群</p>
+                <h4>Claude 4.6 <span class="tag hot">逻辑</span><span class="tag vision">视觉</span></h4>
+                <p>Claude Opus 4.6 / Sonnet 4.6，代码编写逻辑超群，支持图片识别</p>
                 <a class="buy-link" href="https://console.anthropic.com/" target="_blank">→ 获取 API Key</a>
             </div>
             <div class="model-card" data-provider="groq" data-base="https://api.groq.com/openai/v1" data-model="llama-3.3-70b-versatile">
@@ -519,12 +519,20 @@ function togglePw() {
     inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
+function getVisionModels() {
+    return document.querySelectorAll('.model-card.selected[data-vision="true"], .model-card[data-vision="true"].selected');
+}
+
 function buildOpenClawConfig(provider, base, model, apiKey) {
     const baseConfig = {
         gateway: { auth: { mode: 'token', token: 'lubanai-disk-token' }, remote: { token: 'lubanai-disk-token' } },
         commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
         meta: { lastTouchedVersion: openclawVer, lastTouchedAt: new Date().toISOString() }
     };
+
+    const selectedCard = document.querySelector(`.model-card.selected[data-provider="${provider}"]`);
+    const supportsVision = selectedCard && selectedCard.dataset.vision === 'true';
+    const modelInputs = supportsVision ? ['text', 'image'] : ['text'];
 
     if (provider === 'zai') {
         return {
@@ -548,7 +556,7 @@ function buildOpenClawConfig(provider, base, model, apiKey) {
                         id: model,
                         name: model,
                         reasoning: false,
-                        input: ['text'],
+                        input: modelInputs,
                         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                         contextWindow: 128000,
                         maxTokens: 8192
