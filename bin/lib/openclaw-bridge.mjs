@@ -27,7 +27,7 @@ export function channelStatus() {
 
 export function installWechatPlugin() {
   try {
-    execSync(`"${openclawBat}" plugins install "@alichor/openclaw-weixin"`, {
+    execSync(`"${openclawBat}" plugins install "@tencent-weixin/openclaw-weixin"`, {
       cwd: appRoot, timeout: 60000, encoding: 'utf-8',
     });
     return true;

@@ -229,7 +229,7 @@ function startConfigServer(): Promise<number> {
       }
       if (url.pathname === '/api/wechat/install-plugin' && req.method === 'POST') {
         try {
-          execSync(`"${openclawBat}" plugins install "@alichor/openclaw-weixin"`, { cwd: appRoot, timeout: 60000 });
+          execSync(`"${openclawBat}" plugins install "@tencent-weixin/openclaw-weixin"`, { cwd: appRoot, timeout: 60000 });
           const cfg = getConfig();
           if (!cfg.plugins) cfg.plugins = {};
           if (!cfg.plugins.entries) cfg.plugins.entries = {};
