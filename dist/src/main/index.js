@@ -19,16 +19,9 @@ const appRoot = isPackaged ? path.resolve(process.resourcesPath, '..') : path.re
 const resourcesPath = isPackaged
     ? path.join(process.resourcesPath, 'resources')
     : path.join(appRoot, 'resources');
-// Bundled Node.js runtime (we use this to run the source-built openclaw)
-const nodeBin = isPackaged
-    ? path.join(process.resourcesPath, 'runtime', 'node.exe')
-    : path.join(appRoot, 'runtime', 'node.exe');
-// OpenClaw CLI wrapper (bin/openclaw.cmd) for standalone gateway usage
-const openclawCmd = path.join(appRoot, 'bin', 'openclaw.cmd');
-const hasOpenclawCmd = fs.existsSync(openclawCmd);
-// OpenClaw core location (node_modules/openclaw/openclaw.mjs)
-const openclawPath = path.join(appRoot, 'node_modules', 'openclaw');
-const openclawMjs = path.join(openclawPath, 'openclaw.mjs');
+// Unified OpenClaw CLI entry
+const openclawBat = path.join(appRoot, 'OpenClaw.bat');
+const hasOpenclawBat = fs.existsSync(openclawBat);
 // Portable data paths
 const configDir = path.join(appRoot, 'config');
 const configPath = path.join(configDir, 'openclaw.json');
@@ -194,12 +187,11 @@ function startConfigServer() {
                 }, 500);
                 return;
             }
-            // WeChat endpoints (delegated to OpenClaw CLI)
+            // WeChat endpoints (via OpenClaw.bat)
             if (url.pathname === '/api/wechat/login' && req.method === 'POST') {
                 try {
-                    const child = spawn(nodeBin, [openclawMjs, 'channels', 'login', '--channel', 'openclaw-weixin'], {
-                        cwd: appRoot, env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_STATE_DIR: configDir },
-                        stdio: 'inherit', shell: true,
+                    const child = spawn(openclawBat, ['channels', 'login', '--channel', 'openclaw-weixin'], {
+                        cwd: appRoot, stdio: 'inherit',
                     });
                     await new Promise((resolve, reject) => {
                         child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`login exited with code ${code}`)));
@@ -216,13 +208,9 @@ function startConfigServer() {
             }
             if (url.pathname === '/api/wechat/channel-status' && req.method === 'GET') {
                 try {
-                    const out = execSync(`"${nodeBin}" "${openclawMjs}" channels status`, {
-                        cwd: appRoot, env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_STATE_DIR: configDir },
-                        encoding: 'utf-8', timeout: 15000,
-                    });
-                    const online = out.toLowerCase().includes('online');
+                    const out = execSync(`"${openclawBat}" channels status`, { cwd: appRoot, encoding: 'utf-8', timeout: 15000 });
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ online, status: out }));
+                    res.end(JSON.stringify({ online: out.toLowerCase().includes('online'), status: out }));
                 }
                 catch {
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -232,10 +220,7 @@ function startConfigServer() {
             }
             if (url.pathname === '/api/wechat/install-plugin' && req.method === 'POST') {
                 try {
-                    execSync(`"${nodeBin}" "${openclawMjs}" plugins install "@alichor/openclaw-weixin"`, {
-                        cwd: appRoot, env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_STATE_DIR: configDir },
-                        timeout: 60000,
-                    });
+                    execSync(`"${openclawBat}" plugins install "@alichor/openclaw-weixin"`, { cwd: appRoot, timeout: 60000 });
                     const cfg = getConfig();
                     if (!cfg.plugins)
                         cfg.plugins = {};
@@ -258,10 +243,7 @@ function startConfigServer() {
             }
             if (url.pathname === '/api/wechat/plugin-status' && req.method === 'GET') {
                 try {
-                    const out = execSync(`"${nodeBin}" "${openclawMjs}" plugins list --enabled`, {
-                        cwd: appRoot, env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_STATE_DIR: configDir },
-                        encoding: 'utf-8', timeout: 10000,
-                    });
+                    const out = execSync(`"${openclawBat}" plugins list --enabled`, { cwd: appRoot, encoding: 'utf-8', timeout: 10000 });
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ installed: out.includes('openclaw-weixin') }));
                 }
@@ -407,46 +389,14 @@ function getConfigURL() {
 function startGateway(port) {
     return new Promise((resolve, reject) => {
         console.log(`[${APP_NAME}] Starting OpenClaw gateway on port ${port}...`);
-        if (!fs.existsSync(nodeBin)) {
-            reject(new Error(`Node runtime binary not found: ${nodeBin}`));
+        if (!fs.existsSync(openclawBat)) {
+            reject(new Error(`OpenClaw.bat not found: ${openclawBat}`));
             return;
         }
-        if (!fs.existsSync(openclawMjs)) {
-            reject(new Error(`OpenClaw entry file not found: ${openclawMjs}`));
-            return;
-        }
-        const compileCacheDir = path.join(appRoot, 'cache', 'v8-compile-cache');
-        try {
-            fs.mkdirSync(compileCacheDir, { recursive: true });
-        }
-        catch { }
-        const localTemp = path.join(appRoot, 'temp');
-        try {
-            fs.mkdirSync(localTemp, { recursive: true });
-        }
-        catch { }
-        const env = {
-            ...process.env,
-            OPENCLAW_HOME: appRoot,
-            OPENCLAW_STATE_DIR: configDir,
-            OPENCLAW_CONFIG_PATH: configPath,
-            OPENCLAW_EMBEDDED_IN: APP_NAME,
-            NODE_COMPILE_CACHE: compileCacheDir,
-            TMP: localTemp,
-            TEMP: localTemp,
-            OPENCLAW_DISABLE_BONJOUR: '1',
-            OPENCLAW_ALLOW_OLDER_BINARY_DESTRUCTIVE_ACTIONS: '1',
-        };
-        // Run gateway via bin/openclaw.cmd wrapper (standalone, no system PATH needed)
-        const gatewayBin = hasOpenclawCmd ? openclawCmd : nodeBin;
-        const gatewayArgs = hasOpenclawCmd
-            ? ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)]
-            : [openclawMjs, 'gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)];
-        gatewayProcess = spawn(gatewayBin, gatewayArgs, {
-            env,
-            cwd: openclawPath,
+        gatewayProcess = spawn(openclawBat, ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)], {
+            cwd: appRoot,
             stdio: ['pipe', 'pipe', 'pipe'],
-            shell: hasOpenclawCmd,
+            env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_STATE_DIR: configDir, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_EMBEDDED_IN: APP_NAME, OPENCLAW_DISABLE_BONJOUR: '1' },
         });
         gatewayProcess.stdout?.on('data', (data) => {
             const msg = data.toString().trim();

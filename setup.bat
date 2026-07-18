@@ -4,86 +4,39 @@ title LubanAI Disk - Setup
 set "ROOT=%~dp0"
 set "ROOT=%ROOT:~0,-1%"
 
-:: Isolate OpenClaw to project directory
 set "OPENCLAW_HOME=%ROOT%"
 set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
 set "OPENCLAW_STATE_DIR=%ROOT%\config"
 
-echo ============================================
-echo   LubanAI Disk - Portable Setup
-echo ============================================
+echo ========================================
+echo   LubanAI Disk - Setup
+echo ========================================
 echo.
 
-:: Check if already set up
-if exist "%ROOT%\runtime\node.exe" if exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
-    echo [OK] Already set up. Run Windows-Start.bat
-    pause
-    exit /b 0
-)
-
-:: Install portable Node.js
 if not exist "%ROOT%\runtime\node.exe" (
-    echo [1/3] Downloading portable Node.js...
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\setup-node.ps1" -TargetDir "%ROOT%\runtime"
+    echo [1/2] Downloading portable Node.js...
+    powershell -ExecutionPolicy Bypass -File "%ROOT%\scripts\setup-node.ps1" -TargetDir "%ROOT%\runtime"
     if errorlevel 1 (
         echo [FAIL] Node.js download failed
-        echo   Check your internet connection and try again
         pause
         exit /b 1
     )
 )
 
-:: Install npm dependencies
-if not exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
-    echo [2/3] Installing dependencies...
-    echo   This will download ~500MB ^(first time only^)
+set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%ROOT%\node_modules\.bin;%PATH%"
 
-    if not exist "%ROOT%\runtime\npm.cmd" (
-        echo [FAIL] npm not found - Node.js install may be incomplete
-        pause
-        exit /b 1
-    )
-
-    :: Remove stale node_modules from pnpm to avoid "workspace:*" errors
-    if exist "%ROOT%\node_modules\*" (
-        echo   Cleaning old node_modules ^(pnpm artifacts^)...
-        rmdir /s /q "%ROOT%\node_modules"
-    )
-
-    cd /d "%ROOT%"
-    set "PATH=%ROOT%\runtime;%PATH%"
-    set "ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/"
-    call "%ROOT%\runtime\npm.cmd" install --no-optional --no-audit --no-fund
-    if errorlevel 1 (
-        echo [FAIL] Dependency installation failed
-        pause
-        exit /b 1
-    )
-)
-
-:: Verify
-echo [3/3] Verifying...
-
-if not exist "%ROOT%\runtime\node.exe" (
-    echo [FAIL] Node.js not found
-    pause
-    exit /b 1
-)
-
-for /f "tokens=*" %%v in ('"%ROOT%\runtime\node.exe" --version') do set "NODE_VER=%%v"
-
-if not exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
-    echo [FAIL] OpenClaw not found
+echo [2/2] Installing dependencies...
+cd /d "%ROOT%"
+call "%ROOT%\runtime\npm.cmd" install --no-audit --no-fund
+if errorlevel 1 (
+    echo [FAIL] Dependency installation failed
     pause
     exit /b 1
 )
 
 echo.
-echo ============================================
-echo   Setup complete!
-echo   Node.js: %NODE_VER%
-echo   OpenClaw: ready
-echo.
+echo ========================================
+echo   Setup Complete!
 echo   Run Windows-Start.bat to launch
-echo ============================================
+echo ========================================
 pause
