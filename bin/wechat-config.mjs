@@ -13,11 +13,22 @@ const configDir = path.join(appRoot, 'config');
 const configPath = path.join(configDir, 'openclaw.json');
 
 function ensureConfig() {
+  const userBak = configPath + '.userbak';
+  // Backup if has user data
+  if (fs.existsSync(configPath)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (Object.keys(cfg).filter(k => k !== 'gateway').length > 0)
+        fs.copyFileSync(configPath, userBak);
+    } catch {}
+  }
+  // Restore backup or create from template
   if (!fs.existsSync(configPath)) {
-    const template = configPath + '.template';
-    if (fs.existsSync(template)) { fs.copyFileSync(template, configPath); }
+    if (fs.existsSync(userBak)) fs.copyFileSync(userBak, configPath);
     else {
-      fs.writeFileSync(configPath, JSON.stringify(
+      const template = configPath + '.template';
+      if (fs.existsSync(template)) fs.copyFileSync(template, configPath);
+      else fs.writeFileSync(configPath, JSON.stringify(
         { gateway: { mode: 'local', auth: { token: 'lubanai-disk-token' } } }, null, 2
       ));
     }

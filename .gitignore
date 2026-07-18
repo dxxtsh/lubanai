@@ -24,6 +24,7 @@ config/logs/
 config/skill-workshop/
 config/completions/
 config/openclaw.json.bak
+config/openclaw.json.userbak
 *.last-good
 
 # IDE
