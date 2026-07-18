@@ -238,6 +238,51 @@ const server = http.createServer(async (req, res) => {
     } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: err.message })); }
     return;
   }
+  if (url.pathname === '/api/wechat/plugin-status' && req.method === 'GET') {
+    const extDir = path.join(configDir, 'extensions', 'openclaw-weixin');
+    const hasPlugin = fs.existsSync(path.join(extDir, 'openclaw.plugin.json'));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ installed: hasPlugin }));
+    return;
+  }
+  if (url.pathname === '/api/wechat/install-plugin' && req.method === 'POST') {
+    try {
+      const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'cli.mjs');
+      if (fs.existsSync(openclawMjs)) {
+        const nodeBin = process.execPath;
+        const cmd = `"${nodeBin}" "${openclawMjs}" plugins install "@tencent-weixin/openclaw-weixin"`;
+        execSync(cmd, { cwd: appRoot, env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_STATE_DIR: configDir }, timeout: 60000 });
+        const cfg = getConfig();
+        if (!cfg.plugins) cfg.plugins = {};
+        if (!cfg.plugins.entries) cfg.plugins.entries = {};
+        cfg.plugins.entries['openclaw-weixin'] = { enabled: true };
+        saveConfig(cfg);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/done' && req.method === 'POST') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+  if (url.pathname === '/api/version' && req.method === 'GET') {
+    try {
+      const ocPkg = path.join(appRoot, 'node_modules', 'openclaw', 'package.json');
+      const pkg = JSON.parse(fs.readFileSync(ocPkg, 'utf8'));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ openclaw: pkg.version }));
+    } catch (err) {
+      res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   if (url.pathname === '/api/config/export' && req.method === 'GET') {
     const cfg = getConfig();
     // Only export portable config (skip install-specific fields)

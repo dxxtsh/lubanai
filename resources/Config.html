@@ -447,6 +447,8 @@ body {
 let selectedProvider = null;
 let selectedBase = '';
 let selectedModel = '';
+let openclawVer = '2026.7.1';
+fetch('/api/version').then(r => r.ok && r.json()).then(d => { if (d?.openclaw) openclawVer = d.openclaw; }).catch(() => {});
 
 document.querySelectorAll('#step1 .model-card').forEach(card => {
     card.addEventListener('click', (e) => {
@@ -514,7 +516,7 @@ function buildOpenClawConfig(provider, base, model, apiKey) {
     const baseConfig = {
         gateway: { auth: { mode: 'token', token: 'lubanai-disk-token' }, remote: { token: 'lubanai-disk-token' } },
         commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
-        meta: { lastTouchedVersion: '2026.7.14', lastTouchedAt: new Date().toISOString() }
+        meta: { lastTouchedVersion: openclawVer, lastTouchedAt: new Date().toISOString() }
     };
 
     if (provider === 'zai') {
@@ -641,6 +643,7 @@ function toggleChannel(card, type) {
 // ── WeChat QR Login ──
 let wechatPollTimer = null;
 let wechatSessionKey = null;
+let wechatCredentials = null;
 
 async function startWeChatLogin() {
     const btn = document.getElementById('wechatStartBtn');
@@ -697,6 +700,7 @@ function startWeChatPoll() {
             const data = await res.json();
             if (data.status === 'confirmed') {
                 clearInterval(wechatPollTimer); wechatPollTimer = null;
+                wechatCredentials = { botToken: data.token, botId: data.botId, userId: data.userId, baseUrl: data.baseUrl };
                 status.textContent = '✅ 扫码成功！BOT 已就绪';
                 status.style.color = '#34d399';
                 document.getElementById('wechatQrImg').style.opacity = '0.4';
@@ -839,6 +843,10 @@ async function launchOpenClaw() {
     const wcBotId = document.getElementById('ch-wecom-botid')?.value.trim();
     const wcSecret = document.getElementById('ch-wecom-secret')?.value.trim();
     if (wcBotId && wcSecret) channels.wecom = { enabled: true, botId: wcBotId, secret: wcSecret };
+
+    if (wechatCredentials) {
+        channels.wechat = { enabled: true, botToken: wechatCredentials.botToken, botId: wechatCredentials.botId, userId: wechatCredentials.userId, baseUrl: wechatCredentials.baseUrl };
+    }
 
     if (Object.keys(channels).length > 0) {
         try {
