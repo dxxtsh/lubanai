@@ -20,6 +20,34 @@ if not exist "%ROOT%\node_modules\openclaw\openclaw.mjs" (
     exit /b 1
 )
 
-"%ROOT%\runtime\node.exe" "%ROOT%\node_modules\openclaw\openclaw.mjs" %*
+if "%1"=="" goto :usage
 
+"%ROOT%\runtime\node.exe" "%ROOT%\node_modules\openclaw\openclaw.mjs" %*
+endlocal
+exit /b %ERRORLEVEL%
+
+:usage
+echo ========================================
+echo   LubanAI Disk - OpenClaw CLI
+echo ========================================
+echo.
+echo Usage: OpenClaw.bat ^<command^> [args...]
+echo.
+echo Common commands:
+echo   --version              Show version
+echo   gateway run            Start gateway (port 18789)
+echo   channels login         Login WeChat channel
+echo   channels status        Check channel status
+echo   plugins install ...    Install a plugin
+echo   plugins list           List installed plugins
+echo   config validate        Validate config
+echo   doctor --fix           Auto-repair common issues
+echo   tui                    Terminal UI
+echo   help                   Full help
+echo.
+echo Examples:
+echo   OpenClaw.bat --version
+echo   OpenClaw.bat channels login --channel openclaw-weixin
+echo   OpenClaw.bat gateway run --port 18789
+echo.
 endlocal
