@@ -202,7 +202,7 @@ function startConfigServer(): Promise<number> {
       if (url.pathname === '/api/wechat/login' && req.method === 'POST') {
         try {
           const child = spawn(openclawBat, ['channels', 'login', '--channel', 'openclaw-weixin'], {
-            cwd: appRoot, stdio: 'inherit',
+            cwd: appRoot, stdio: 'inherit', shell: true,
           });
           await new Promise<void>((resolve, reject) => {
             child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`login exited with code ${code}`)));
@@ -381,7 +381,7 @@ function startGateway(port: number): Promise<number> {
     }
 
     gatewayProcess = spawn(openclawBat, ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)], {
-      cwd: appRoot,
+      cwd: appRoot, shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_STATE_DIR: configDir, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_EMBEDDED_IN: APP_NAME, OPENCLAW_DISABLE_BONJOUR: '1' },
     });

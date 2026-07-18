@@ -9,7 +9,7 @@ const openclawBat = path.join(appRoot, 'OpenClaw.bat');
 export function loginWechat() {
   return new Promise((resolve, reject) => {
     const child = spawn(openclawBat, ['channels', 'login', '--channel', 'openclaw-weixin'], {
-      cwd: appRoot, stdio: 'inherit',
+      cwd: appRoot, stdio: 'inherit', shell: true,
     });
     child.on('close', (code) => {
       if (code === 0) resolve();
