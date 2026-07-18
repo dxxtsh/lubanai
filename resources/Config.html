@@ -860,7 +860,7 @@ async function launchOpenClaw() {
     if (wcBotId && wcSecret) channels.wecom = { enabled: true, botId: wcBotId, secret: wcSecret };
 
     if (wechatCredentials) {
-        channels.wechat = { enabled: true, botToken: wechatCredentials.botToken, botId: wechatCredentials.botId, userId: wechatCredentials.userId, baseUrl: wechatCredentials.baseUrl };
+        channels['openclaw-weixin'] = { enabled: true, botToken: wechatCredentials.botToken, botId: wechatCredentials.botId, userId: wechatCredentials.userId, baseUrl: wechatCredentials.baseUrl };
     }
 
     if (Object.keys(channels).length > 0) {
@@ -869,6 +869,9 @@ async function launchOpenClaw() {
             const existing = res.ok ? await res.json() : {};
             delete existing.agent;
             existing.channels = Object.assign(existing.channels || {}, channels);
+            if (!existing.plugins) existing.plugins = {};
+            if (!existing.plugins.allow) existing.plugins.allow = [];
+            if (!existing.plugins.allow.includes('openclaw-weixin')) existing.plugins.allow.push('openclaw-weixin');
             await fetch('/api/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

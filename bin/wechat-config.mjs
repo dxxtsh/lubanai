@@ -256,6 +256,8 @@ const server = http.createServer(async (req, res) => {
         if (!cfg.plugins) cfg.plugins = {};
         if (!cfg.plugins.entries) cfg.plugins.entries = {};
         cfg.plugins.entries['openclaw-weixin'] = { enabled: true };
+        if (!cfg.plugins.allow) cfg.plugins.allow = [];
+        if (!cfg.plugins.allow.includes('openclaw-weixin')) cfg.plugins.allow.push('openclaw-weixin');
         saveConfig(cfg);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
