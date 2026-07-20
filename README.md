@@ -30,9 +30,10 @@ lubanai/
 ├── assets/               # 图标等素材
 ├── docs/                 # 文档
 ├── setup.bat             # 一次性安装脚本
-├── Windows-Start.bat     # 启动
-├── Windows-CLI.bat       # 命令行环境
-└── Windows-Diagnose.bat  # 诊断工具
+├── Windows-Start.bat     # 启动应用
+├── Config.bat            # 独立渠道配置工具
+├── OpenClaw.bat          # 统一 CLI 入口
+└── Repair.bat            # 一键修复
 ```
 
 ## 架构
@@ -41,7 +42,7 @@ lubanai/
 - **OpenClaw** — AI Agent 运行时网关（npm 依赖）
 - **Node.js 便携版** — 位于 `runtime/`，由 `setup.bat` 自动下载
 
-启动流程：`Windows-Start.bat` → Electron → `runtime\node.exe openclaw.mjs gateway run`
+启动流程：`Windows-Start.bat` → Electron → 嵌入式 HTTP 服务器 + `OpenClaw.bat gateway run`
 
 ## 首次安装说明
 
@@ -51,6 +52,7 @@ lubanai/
    - 运行 `npm install` 安装所有依赖
 3. 双击 `Windows-Start.bat` 启动应用
 4. 在浏览器中打开 `http://localhost:18789` 配置模型
+5. 也可运行 `Config.bat` 独立配置渠道（无需启动应用）
 
 ## 从 U 盘运行
 
@@ -67,7 +69,7 @@ lubanai/
 
 | 渠道 | 方式 | 说明 |
 |------|------|------|
-| 💬 个人微信 | iLink 扫码 | 通过 `@tencent-weixin/openclaw-weixin` 插件扫码登录 |
+| 💬 个人微信 | OpenClaw 官方插件 | `OpenClaw.bat channels login --channel openclaw-weixin` |
 | 🏢 企业微信 | Bot ID + Secret | 企微群聊应用助手 |
 | 📘 飞书 / Lark | App ID + Secret | 飞书群聊与单聊应用 |
 | 🤖 Telegram | Bot Token | 官方 Bot API |
@@ -75,7 +77,28 @@ lubanai/
 
 ### 独立渠道配置工具
 
-不需要启动完整应用，双击 **`Windows-渠道配置.bat`** 即可打开浏览器独立配置渠道。
+不需要启动完整应用，双击 **`Config.bat`** 即可打开浏览器独立配置渠道。
+
+### 统一 CLI 入口
+
+所有 OpenClaw 命令统一通过 **`OpenClaw.bat`** 执行，双击显示常用命令菜单：
+
+```
+OpenClaw.bat --version
+OpenClaw.bat channels login --channel openclaw-weixin
+OpenClaw.bat channels status
+OpenClaw.bat gateway run --port 18789
+OpenClaw.bat doctor --fix
+```
+
+### 一键修复
+
+运行 **`Repair.bat`** 自动执行：
+
+```
+OpenClaw.bat doctor --fix
+OpenClaw.bat config validate
+```
 
 ### 导入 / 导出
 
@@ -88,13 +111,9 @@ lubanai/
 
 > 迁移只需两个文件：`lubanai-config.json` + `lubanai-skills.json`（如有自定义 skill）
 
-## 命令行工具
+## CLI 环境
 
-双击 `Windows-CLI.bat` 进入便携命令行环境，可用 `node`、`npm`、`npx` 命令。
-
-## 诊断
-
-运行 `Windows-Diagnose.bat` 检查环境状态。
+运行 `OpenClaw.bat <command>` 直接执行 OpenClaw 命令，自动使用 portable Node.js。
 
 ## 目录结构补充
 
@@ -102,9 +121,11 @@ lubanai/
 lubanai/
 ├── ...
 ├── bin/                     # 独立工具脚本
-│   └── wechat-config.mjs    # 渠道配置独立 HTTP 服务
+│   ├── wechat-config.mjs    # 渠道配置独立 HTTP 服务
+│   └── lib/
+│       ├── openclaw-bridge.mjs   # OpenClaw CLI 统一调用封装
 ├── skills/                  # 技能 .md 文件（可热加载）
-├── Windows-渠道配置.bat       # 独立渠道配置工具
+├── Config.bat               # 独立渠道配置工具
 └── ...
 ```
 
