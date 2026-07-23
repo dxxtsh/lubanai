@@ -86,10 +86,9 @@ function ensureConfigStructure() {
     try {
         let config = getConfig();
         let changed = false;
-        // If config has user data beyond gateway, skip all migrations
-        const userKeys = Object.keys(config).filter(k => k !== 'gateway');
-        if (userKeys.length > 0)
-            return;
+        // Always ensure gateway section is valid to prevent the
+        // OpenClaw gateway's auto-recovery from triggering on a
+        // missing gateway.mode and restoring from backup.
         if (!config.gateway) {
             config.gateway = {};
             changed = true;
