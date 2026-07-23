@@ -40,6 +40,28 @@ let gatewayPort = DEFAULT_PORT;
 let gatewayReady = false;
 let configServerPort: number | null = null;
 
+// ── Deep Merge Utility ──
+function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const val = source[key];
+    if (val === null || val === undefined) continue;
+    if (Array.isArray(val)) {
+      (result as any)[key] = [...val];
+    } else if (typeof val === 'object') {
+      const targetVal = (result as any)[key];
+      if (targetVal && typeof targetVal === 'object' && !Array.isArray(targetVal) && targetVal !== null) {
+        (result as any)[key] = deepMerge(targetVal, val);
+      } else {
+        (result as any)[key] = val;
+      }
+    } else {
+      (result as any)[key] = val;
+    }
+  }
+  return result;
+}
+
 // ── Config Management ──
 function ensureConfig(): void {
   try {
@@ -192,12 +214,14 @@ function startConfigServer(): Promise<number> {
           try {
             const newConfig = JSON.parse(body);
             const existing = getConfig();
-            const merged = Object.assign(existing, newConfig);
+            // Deep merge: only update fields present in newConfig,
+            // preserving channels (Telegram, QQ, Feishu, WeCom, WeChat) etc.
+            const merged = deepMerge(existing, newConfig);
             // Always ensure gateway.mode is present to prevent
             // OpenClaw gateway's auto-recovery from restoring backup
             ensureConfigHasGatewayMode(merged);
             fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
-            console.log(`[${APP_NAME}] Config saved`);
+            console.log(`[${APP_NAME}] Config saved (partial merge)`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: true }));
           } catch (e: any) {
@@ -335,17 +359,10 @@ function startConfigServer(): Promise<number> {
             // Backup
             const bakPath = configPath + '.bak.' + Date.now();
             try { fs.copyFileSync(configPath, bakPath); } catch {}
-            // Deep merge
+            // Deep merge: preserve existing config, only override imported fields
             const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-            for (const k of Object.keys(imported)) {
-              if (typeof imported[k] === 'object' && imported[k] !== null && !Array.isArray(imported[k])) {
-                existing[k] = existing[k] || {};
-                Object.assign(existing[k], imported[k]);
-              } else {
-                existing[k] = imported[k];
-              }
-            }
-            fs.writeFileSync(configPath, JSON.stringify(existing, null, 2), 'utf-8');
+            const merged = deepMerge(existing, imported);
+            fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: true, backup: path.basename(bakPath) }));
           } catch (e: any) { res.writeHead(400); res.end(JSON.stringify({ error: e.message })); }
