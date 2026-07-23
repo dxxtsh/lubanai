@@ -82,25 +82,46 @@ function getConfig() {
         return { gateway: { mode: 'local', auth: { token: 'lubanai-disk-token' } } };
     }
 }
+function cleanupOpenClawState() {
+    try {
+        // Delete .bak file to prevent stale baseline comparison
+        const bakPath = `${configPath}.bak`;
+        if (fs.existsSync(bakPath)) {
+            fs.unlinkSync(bakPath);
+            console.log(`[${APP_NAME}] Deleted stale .bak`);
+        }
+        // Delete config health state to prevent restore from old baseline
+        const userDir = process.env.USERPROFILE || process.env.HOME || '';
+        if (userDir) {
+            const healthPath = path.join(userDir, '.openclaw', 'logs', 'config-health.json');
+            if (fs.existsSync(healthPath)) {
+                fs.unlinkSync(healthPath);
+                console.log(`[${APP_NAME}] Deleted config health state`);
+            }
+        }
+    }
+    catch (e) {
+        console.error(`[${APP_NAME}] Failed to cleanup OpenClaw state:`, e);
+    }
+}
+function ensureConfigHasGatewayMode(config) {
+    if (!config.gateway || typeof config.gateway !== 'object') {
+        config.gateway = {};
+    }
+    if (!config.gateway.mode || typeof config.gateway.mode !== 'string') {
+        config.gateway.mode = 'local';
+    }
+    if (!config.gateway.auth || typeof config.gateway.auth !== 'object') {
+        config.gateway.auth = { token: 'lubanai-disk-token' };
+    }
+}
 function ensureConfigStructure() {
     try {
-        let config = getConfig();
-        let changed = false;
-        // Always ensure gateway section is valid to prevent the
-        // OpenClaw gateway's auto-recovery from triggering on a
-        // missing gateway.mode and restoring from backup.
-        if (!config.gateway) {
-            config.gateway = {};
-            changed = true;
-        }
-        if (!config.gateway.mode) {
-            config.gateway.mode = 'local';
-            changed = true;
-        }
-        if (!config.gateway.auth) {
-            config.gateway.auth = { token: 'lubanai-disk-token' };
-            changed = true;
-        }
+        const config = getConfig();
+        const oldMode = config.gateway?.mode;
+        const oldAuth = config.gateway?.auth?.token;
+        ensureConfigHasGatewayMode(config);
+        const changed = config.gateway?.mode !== oldMode || config.gateway?.auth?.token !== oldAuth;
         if (changed) {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
             console.log(`[${APP_NAME}] Config structure validated/updated`);
@@ -163,6 +184,9 @@ function startConfigServer() {
                         const newConfig = JSON.parse(body);
                         const existing = getConfig();
                         const merged = Object.assign(existing, newConfig);
+                        // Always ensure gateway.mode is present to prevent
+                        // OpenClaw gateway's auto-recovery from restoring backup
+                        ensureConfigHasGatewayMode(merged);
                         fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
                         console.log(`[${APP_NAME}] Config saved`);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -614,6 +638,7 @@ app.whenReady().then(async () => {
     console.log(`[${APP_NAME}] starting...`);
     ensureConfig();
     ensureConfigStructure();
+    cleanupOpenClawState();
     createMenu();
     setupIPC();
     createWindow();
