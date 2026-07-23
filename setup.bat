@@ -8,6 +8,13 @@ set "OPENCLAW_HOME=%ROOT%"
 set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
 set "OPENCLAW_STATE_DIR=%ROOT%\config"
 
+if exist "%OPENCLAW_CONFIG_PATH%" (
+    rem --- Config already exists: tell postinstall to leave everything alone ---
+    set "OPENCLAW_DISABLE_BUNDLED_PLUGIN_POSTINSTALL=1"
+    set "OPENCLAW_DISABLE_PLUGIN_REGISTRY_MIGRATION=1"
+    echo [SKIP] Existing config detected, setup will not overwrite it
+)
+
 echo ========================================
 echo   LubanAI Disk - Setup
 echo ========================================

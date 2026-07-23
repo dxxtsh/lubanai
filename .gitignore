@@ -41,3 +41,4 @@ desktop.ini
 
 # OpenClaw workspace state.openclaw/
 config/devices/
+.aider*
