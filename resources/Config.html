@@ -814,14 +814,12 @@ async function launchOpenClaw() {
 
     if (Object.keys(channels).length > 0) {
         try {
-            const res = await fetch('/api/config');
-            const existing = res.ok ? await res.json() : {};
-            delete existing.agent;
-            existing.channels = Object.assign(existing.channels || {}, channels);
+            // Only send channels object — backend does deep merge.
+            // Do NOT fetch-rewrite-full because that deletes agents.list, gateway.mode, etc.
             await fetch('/api/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(existing)
+                body: JSON.stringify({ channels })
             });
         } catch(e) {}
     }

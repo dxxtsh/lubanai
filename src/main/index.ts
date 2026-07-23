@@ -62,6 +62,43 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
   return result;
 }
 
+// ── Critical Field Protection ──
+// After a merge, re-read the disk copy and restore fields that must never be lost.
+// This defends against any code path (gateway reload, race condition, etc.)
+// that could wipe agents.list, channels, plugins, commands, or gateway.mode.
+function protectCriticalFields(merged: Record<string, any>): Record<string, any> {
+  try {
+    const disk = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+
+    // agents.list — the user's saved agent definitions (workspaces)
+    if (disk.agents?.list && (!merged.agents || !merged.agents.list)) {
+      if (!merged.agents) merged.agents = {};
+      merged.agents.list = disk.agents.list;
+      console.log(`[${APP_NAME}] Protected agents.list (${merged.agents.list.length} items)`);
+    }
+
+    // channels — Telegram, QQ, Feishu, WeCom, WeChat config
+    if (disk.channels && Object.keys(disk.channels).length > 0 && (!merged.channels || !Object.keys(merged.channels).length)) {
+      merged.channels = disk.channels;
+      console.log(`[${APP_NAME}] Protected channels`);
+    }
+
+    // plugins — installed plugin definitions
+    if (disk.plugins && (!merged.plugins || Object.keys(merged.plugins).length === 0) && Object.keys(disk.plugins).length > 0) {
+      merged.plugins = disk.plugins;
+      console.log(`[${APP_NAME}] Protected plugins`);
+    }
+
+    // commands — native command settings
+    if (disk.commands && (!merged.commands || !Object.keys(merged.commands).length)) {
+      merged.commands = disk.commands;
+      console.log(`[${APP_NAME}] Protected commands`);
+    }
+
+  } catch { /* Cannot read disk — skip protection */ }
+  return merged;
+}
+
 // ── Config Management ──
 function ensureConfig(): void {
   try {
@@ -217,10 +254,12 @@ function startConfigServer(): Promise<number> {
             // Deep merge: only update fields present in newConfig,
             // preserving channels (Telegram, QQ, Feishu, WeCom, WeChat) etc.
             const merged = deepMerge(existing, newConfig);
+            // Restore critical fields that must never be lost by partial save
+            const safe = protectCriticalFields(merged);
             // Always ensure gateway.mode is present to prevent
             // OpenClaw gateway's auto-recovery from restoring backup
-            ensureConfigHasGatewayMode(merged);
-            fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
+            ensureConfigHasGatewayMode(safe);
+            fs.writeFileSync(configPath, JSON.stringify(safe, null, 2), 'utf-8');
             console.log(`[${APP_NAME}] Config saved (partial merge)`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: true }));
@@ -362,7 +401,9 @@ function startConfigServer(): Promise<number> {
             // Deep merge: preserve existing config, only override imported fields
             const existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
             const merged = deepMerge(existing, imported);
-            fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
+            // Restore critical fields that must never be lost by partial save
+            const safe = protectCriticalFields(merged);
+            fs.writeFileSync(configPath, JSON.stringify(safe, null, 2), 'utf-8');
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ ok: true, backup: path.basename(bakPath) }));
           } catch (e: any) { res.writeHead(400); res.end(JSON.stringify({ error: e.message })); }
