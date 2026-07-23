@@ -62,37 +62,33 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
   return result;
 }
 
-// ── Critical Field Protection ──
-// After a merge, re-read the disk copy and restore fields that must never be lost.
-// This defends against any code path (gateway reload, race condition, etc.)
-// that could wipe agents.list, channels, plugins, commands, or gateway.mode.
+// ── Critical Field Protection (Force Restore) ──
+// After any merge, re-read the disk copy and unconditionally restore critical fields.
+// These fields are managed by OpenClaw gateway / other system code and must NEVER
+// be overwritten or deleted by a partial frontend save.
 function protectCriticalFields(merged: Record<string, any>): Record<string, any> {
   try {
     const disk = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
-    // agents.list — the user's saved agent definitions (workspaces)
-    if (disk.agents?.list && (!merged.agents || !merged.agents.list)) {
+    // [FORCE] agents.list — user's saved workspace / agent definitions.
+    // Frontend only sends agents.defaults; without this, the list is wiped.
+    if (disk.agents?.list && Array.isArray(disk.agents.list)) {
       if (!merged.agents) merged.agents = {};
       merged.agents.list = disk.agents.list;
-      console.log(`[${APP_NAME}] Protected agents.list (${merged.agents.list.length} items)`);
+      console.log(`[${APP_NAME}] FORCE-protected agents.list (${merged.agents.list.length} items)`);
     }
 
-    // channels — Telegram, QQ, Feishu, WeCom, WeChat config
-    if (disk.channels && Object.keys(disk.channels).length > 0 && (!merged.channels || !Object.keys(merged.channels).length)) {
+    // [FORCE] channels — Telegram, QQ, Feishu, WeCom, WeChat config.
+    // Partial save never includes these; always preserve from disk.
+    if (disk.channels && Object.keys(disk.channels).length > 0) {
       merged.channels = disk.channels;
-      console.log(`[${APP_NAME}] Protected channels`);
+      console.log(`[${APP_NAME}] FORCE-protected channels`);
     }
 
-    // plugins — installed plugin definitions
-    if (disk.plugins && (!merged.plugins || Object.keys(merged.plugins).length === 0) && Object.keys(disk.plugins).length > 0) {
+    // [FORCE] plugins — installed plugin definitions managed by OpenClaw CLI.
+    if (disk.plugins && Object.keys(disk.plugins).length > 0) {
       merged.plugins = disk.plugins;
-      console.log(`[${APP_NAME}] Protected plugins`);
-    }
-
-    // commands — native command settings
-    if (disk.commands && (!merged.commands || !Object.keys(merged.commands).length)) {
-      merged.commands = disk.commands;
-      console.log(`[${APP_NAME}] Protected commands`);
+      console.log(`[${APP_NAME}] FORCE-protected plugins`);
     }
 
   } catch { /* Cannot read disk — skip protection */ }
