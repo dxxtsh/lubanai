@@ -170,12 +170,63 @@ function ensureConfigHasGatewayMode(config) {
         config.gateway.auth = { token: 'lubanai-disk-token' };
     }
 }
+function autoEnablePlugins(config) {
+    const projectsDir = path.join(path.dirname(configPath), 'npm', 'projects');
+    if (!fs.existsSync(projectsDir)) return config;
+    if (!config.plugins) config.plugins = {};
+    if (!config.plugins.entries) config.plugins.entries = {};
+    if (!config.plugins.allow) config.plugins.allow = [];
+    const pluginJsonFiles = [];
+    try {
+        for (const projDir of fs.readdirSync(projectsDir, { withFileTypes: true })) {
+            if (!projDir.isDirectory()) continue;
+            const walk = (dir) => {
+                try {
+                    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                        if (entry.isDirectory()) {
+                            walk(path.join(dir, entry.name));
+                        }
+                        else if (entry.name === 'openclaw.plugin.json') {
+                            pluginJsonFiles.push(path.join(dir, entry.name));
+                        }
+                    }
+                }
+                catch { }
+            };
+            walk(path.join(projectsDir, projDir.name));
+        }
+    }
+    catch { }
+    let changed = false;
+    for (const jsonPath of pluginJsonFiles) {
+        try {
+            const meta = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+            const id = meta.id;
+            if (!id) continue;
+            if (!config.plugins.entries[id]) {
+                config.plugins.entries[id] = { enabled: true };
+                console.log(`[${APP_NAME}] Auto-enabled plugin: ${id}`);
+                changed = true;
+            }
+            if (!config.plugins.allow.includes(id)) {
+                config.plugins.allow.push(id);
+                changed = true;
+            }
+        }
+        catch { }
+    }
+    if (changed) {
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    }
+    return config;
+}
 function ensureConfigStructure() {
     try {
-        const config = getConfig();
+        let config = getConfig();
         const oldMode = config.gateway?.mode;
         const oldAuth = config.gateway?.auth?.token;
         ensureConfigHasGatewayMode(config);
+        config = autoEnablePlugins(config);
         const changed = config.gateway?.mode !== oldMode || config.gateway?.auth?.token !== oldAuth;
         if (changed) {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
