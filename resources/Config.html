@@ -195,7 +195,7 @@ body {
         <p class="desc">选择您需要使用的主模型并进行配置。支持国内外主流大模型及符合 OpenAI 格式的任意自定义中转接口。</p>
 
         <div class="model-grid">
-            <div class="model-card" data-provider="deepseek" data-base="https://api.deepseek.com/v1" data-model="deepseek-chat">
+            <div class="model-card" data-provider="deepseek" data-base="https://api.deepseek.com/v1" data-model="deepseek-v4-flash">
                 <span class="check">✓</span>
                 <h4>DeepSeek <span class="tag cn">国内</span><span class="tag cheap">首选超低价</span></h4>
                 <p>deepseek-chat / deepseek-v4 官方原版 API，性价比极高</p>
@@ -578,7 +578,18 @@ async function saveConfig() {
         if (!base || !model) { showToast('请填写 API 地址 and 模型名称', true); return; }
     }
 
-    const openclawConfig = buildOpenClawConfig(selectedProvider, base, model, apiKey);
+    let openclawConfig = buildOpenClawConfig(selectedProvider, base, model, apiKey);
+
+    const providerKey = selectedProvider === 'custom' ? (openclawConfig.models && openclawConfig.models.providers ? Object.keys(openclawConfig.models.providers)[0] : '') : selectedProvider;
+    const isDeepSeek = providerKey && /deepseek/i.test(providerKey);
+
+    if (isDeepSeek) {
+        if (openclawConfig.models && openclawConfig.models.providers) {
+            Object.values(openclawConfig.models.providers).forEach(p => {
+                p.api = 'openai-completions';
+            });
+        }
+    }
 
     try {
         const res = await fetch('/api/config', {
