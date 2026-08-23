@@ -195,15 +195,21 @@ body {
         <p class="desc">选择您需要使用的主模型并进行配置。支持国内外主流大模型及符合 OpenAI 格式的任意自定义中转接口。</p>
 
         <div class="model-grid">
+            <div class="model-card" data-provider="poyo" data-base="https://api.poyo.ai/v1" data-model="gpt-5.4" data-vision="true">
+                <span class="check">✓</span>
+                <h4>PoYo 多模态网关 <span class="tag hot">钉哥推荐</span><span class="tag cheap">首选超低价</span><span class="tag free">多模型中转</span><span class="tag fast">MCP支持</span></h4>
+                <p>支持 OpenAI、Claude、DeepSeek、Flux3、H3、可灵等 500+ 音视频模型</p>
+                <a class="buy-link" href="https://poyo.ai/?affiliate_code=dxxtshb3024a&open_signup=1" target="_blank">→ 获取 API Key</a>
+            </div>
             <div class="model-card" data-provider="deepseek" data-base="https://api.deepseek.com/v1" data-model="deepseek-v4-flash">
                 <span class="check">✓</span>
-                <h4>DeepSeek <span class="tag cn">国内</span><span class="tag cheap">首选超低价</span></h4>
+                <h4>DeepSeek <span class="tag cn">国内</span></h4>
                 <p>deepseek-chat / deepseek-v4 官方原版 API，性价比极高</p>
                 <a class="buy-link" href="https://platform.deepseek.com/" target="_blank">→ 获取 API Key</a>
             </div>
             <div class="model-card" data-provider="siliconflow" data-base="https://api.siliconflow.cn/v1" data-model="Qwen/Qwen2.5-72B-Instruct">
                 <span class="check">✓</span>
-                <h4>硅基流动 <span class="tag cn">国内</span><span class="tag cheap">多模型中转</span></h4>
+                <h4>硅基流动 <span class="tag cn">国内</span></h4>
                 <p>多模型聚合代理服务，支持多种国内大模型，价格低廉，免翻墙</p>
                 <a class="buy-link" href="https://cloud.siliconflow.cn/" target="_blank">→ 获取 API Key</a>
             </div>
@@ -229,7 +235,7 @@ body {
                 <span class="check">✓</span>
                 <h4>通义千问 <span class="tag cn">国内</span><span class="tag free">送额度</span></h4>
                 <p>qwen-plus / qwen3-max，阿里云出品，综合能力稳健</p>
-                <a class="buy-link" href="https://bailian.console.aliyun.com/cn-beijing#/home" target="_blank">→ 获取 API Key</a>
+                <a class="buy-link" href="https://dashscope.console.aliyun.com/" target="_blank">→ 获取 API Key</a>
             </div>
             <div class="model-card" data-provider="doubao" data-base="https://ark.cn-beijing.volces.com/api/v3" data-model="doubao-seed-1-6-250615">
                 <span class="check">✓</span>
@@ -317,6 +323,15 @@ body {
             <h2>钉哥联盟 AI 智盘 配置完成！</h2>
             <p>主模型与 API 密钥已就绪，您可以选择性开启以下外部通讯渠道：</p>
             <div class="url" id="gatewayUrl">http://127.0.0.1:18789</div>
+
+            <div id="poyoMcpBox" style="display:none; margin-top: 24px; text-align: left;">
+                <h3 style="color: #38bdf8; font-size: 0.95em; margin-bottom: 12px;">🔌 PoYo MCP 挂载命令（可选：终端一键挂载）</h3>
+                <p style="color: #64748b; font-size: 0.8em; margin-bottom: 10px;">mcpServers.poyo 节点已随配置写入 openclaw.json，也可用以下命令手动挂载 MCP SSE 服务：</p>
+                <div style="display:flex; gap:8px; align-items:center; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:12px 14px;">
+                    <code id="poyoMcpCmd" style="flex:1; font-family:ui-monospace, Consolas, monospace; font-size:0.8em; color:#a5b4fc; word-break:break-all; line-height:1.6;"></code>
+                    <button class="btn btn-secondary" onclick="copyPoyoCmd()" style="padding:8px 16px; font-size:0.82em; white-space:nowrap;">📋 复制命令</button>
+                </div>
+            </div>
 
             <div style="margin-top: 24px; text-align: left;">
                 <h3 style="color: #38bdf8; font-size: 0.95em; margin-bottom: 12px;">📱 启用智能体通信渠道（选填）</h3>
@@ -490,7 +505,7 @@ function setupStep2() {
         minimax: 'MiniMax', kimi: 'Kimi (月之暗面)', deepseek: 'DeepSeek',
         zai: '智谱 GLM', qwen: '通义千问', doubao: '豆包',
         openai: 'OpenAI', anthropic: 'Anthropic Claude', groq: 'Groq',
-        siliconflow: '硅基流动', custom: '自定义'
+        siliconflow: '硅基流动', poyo: 'PoYo 多模态网关', custom: '自定义'
     };
     const name = providerNames[selectedProvider] || selectedProvider;
     document.getElementById('step2desc').textContent = `请填写 ${name} 的 API Key`;
@@ -540,7 +555,7 @@ function buildOpenClawConfig(provider, base, model, apiKey) {
     }
 
     const providerName = provider || 'myProvider';
-    return {
+    const providerConfig = {
         ...baseConfig,
         models: {
             mode: 'merge',
@@ -563,6 +578,17 @@ function buildOpenClawConfig(provider, base, model, apiKey) {
         },
         agents: { defaults: { model: { primary: providerName + '/' + model } } }
     };
+    if (provider === 'poyo') {
+        providerConfig.env = { POYO_API_KEY: apiKey };
+        providerConfig.mcpServers = {
+            poyo: {
+                url: 'https://api.poyo.ai/mcp',
+                headers: { Authorization: 'Bearer ' + apiKey },
+                tool_timeout_sec: 45
+            }
+        };
+    }
+    return providerConfig;
 }
 
 async function saveConfig() {
@@ -603,8 +629,30 @@ async function saveConfig() {
         goStep(3);
         const port = getPort();
         document.getElementById('gatewayUrl').textContent = 'http://127.0.0.1:' + port;
+        renderPoyoMcp();
     } catch (e) {
         showToast('保存失败: ' + e.message, true);
+    }
+}
+
+function renderPoyoMcp() {
+    const box = document.getElementById('poyoMcpBox');
+    if (selectedProvider !== 'poyo') { box.style.display = 'none'; return; }
+    const key = document.getElementById('apiKey').value.trim();
+    const cmd = `openclaw mcp add poyo --type sse --url https://api.poyo.ai/mcp --headers "Authorization=Bearer ${key}"`;
+    document.getElementById('poyoMcpCmd').textContent = cmd;
+    box.style.display = 'block';
+}
+
+function copyPoyoCmd() {
+    const cmd = document.getElementById('poyoMcpCmd').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(() => showToast('已复制 PoYo MCP 挂载命令'));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = cmd; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('已复制 PoYo MCP 挂载命令');
     }
 }
 
