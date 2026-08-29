@@ -255,11 +255,22 @@ body {
                 <p>GPT-5.4 官方 API，支持图片理解，需翻墙环境或国内代理中转</p>
                 <a class="buy-link" href="https://platform.openai.com/" target="_blank">→ 获取 API Key</a>
             </div>
+            <div class="model-card" data-provider="google" data-base="https://generativelanguage.googleapis.com/v1beta/openai/" data-model="gemini-3.6-flash" data-vision="true">
+                <span class="check">✓</span>
+                <h4>Google Gemini <span class="tag hot">AI Studio</span><span class="tag vision">视觉</span></h4>
+                <p>Gemini 3.6 Flash 官方免费 API，支持图片理解，需魔法上网环境</p>
+                <a class="buy-link" href="https://aistudio.google.com/app/apikey" target="_blank">→ 获取 API Key</a>
+            </div>
             <div class="model-card" data-provider="anthropic" data-base="https://api.anthropic.com/v1" data-model="claude-opus-4-6" data-vision="true">
                 <span class="check">✓</span>
                 <h4>Claude 4.6 <span class="tag hot">逻辑</span><span class="tag vision">视觉</span></h4>
                 <p>Claude Opus 4.6 / Sonnet 4.6，代码编写逻辑超群，支持图片识别</p>
                 <a class="buy-link" href="https://console.anthropic.com/" target="_blank">→ 获取 API Key</a>
+            </div>
+            <div class="model-card" data-provider="ollama" data-base="http://127.0.0.1:11434/v1" data-model="">
+                <span class="check">✓</span>
+                <h4>Ollama <span class="tag cn">本地</span><span class="tag free">免 Key</span></h4>
+                <p>本地 Ollama 服务，OpenAI 兼容接口，默认 127.0.0.1:11434，地址可自行修改</p>
             </div>
             <div class="model-card" data-provider="custom" data-base="" data-model="">
                 <span class="check">✓</span>
@@ -492,17 +503,26 @@ function goStep(n) {
 }
 
 function setupStep2() {
-    const isCustom = selectedProvider === 'custom';
+    const isCustom = selectedProvider === 'custom' || selectedProvider === 'ollama';
     document.getElementById('customFields').style.display = isCustom ? 'block' : 'none';
 
     const providerNames = {
         minimax: 'MiniMax', kimi: 'Kimi (月之暗面)', deepseek: 'DeepSeek',
         zai: '智谱 GLM', qwen: '通义千问', doubao: '豆包',
-        openai: 'OpenAI', anthropic: 'Anthropic Claude', groq: 'Groq',
-        siliconflow: '硅基流动', poyo: 'PoYo 多模态网关', custom: '自定义'
+        openai: 'OpenAI', google: 'Google Gemini', anthropic: 'Anthropic Claude', groq: 'Groq',
+        siliconflow: '硅基流动', poyo: 'PoYo 多模态网关', ollama: 'Ollama', custom: '自定义'
     };
     const name = providerNames[selectedProvider] || selectedProvider;
     document.getElementById('step2desc').textContent = `请填写 ${name} 的 API Key`;
+
+    // Ollama: prefill base URL (editable), default API key, and let user type the model name.
+    if (selectedProvider === 'ollama') {
+        document.getElementById('customBase').value = selectedBase || 'http://127.0.0.1:11434/v1';
+        const keyInput = document.getElementById('apiKey');
+        keyInput.value = 'ollama';
+        keyInput.placeholder = 'ollama (本地服务默认，无需修改)';
+        if (!selectedModel) document.getElementById('customModel').value = '';
+    }
 
     const card = document.querySelector(`#step1 .model-card[data-provider="${selectedProvider}"]`);
     const buyLink = card ? card.querySelector('.buy-link') : null;
@@ -589,38 +609,75 @@ function buildOpenClawConfig(provider, base, model, apiKey) {
 }
 
 async function saveConfig() {
-    const apiKey = document.getElementById('apiKey').value.trim();
+    let apiKey = document.getElementById('apiKey').value.trim();
+    if (selectedProvider === 'ollama' && !apiKey) apiKey = 'ollama'; // local, default key
     if (!apiKey) { showToast('请填写 API Key', true); return; }
 
     let base = selectedBase;
     let model = selectedModel;
 
-    if (selectedProvider === 'custom') {
+    if (selectedProvider === 'custom' || selectedProvider === 'ollama') {
         base = document.getElementById('customBase').value.trim();
         model = document.getElementById('customModel').value.trim();
         if (!base || !model) { showToast('请填写 API 地址 and 模型名称', true); return; }
     }
 
-    let openclawConfig = buildOpenClawConfig(selectedProvider, base, model, apiKey);
+    let newProviderConfig = buildOpenClawConfig(selectedProvider, base, model, apiKey);
 
-    const providerKey = selectedProvider === 'custom' ? (openclawConfig.models && openclawConfig.models.providers ? Object.keys(openclawConfig.models.providers)[0] : '') : selectedProvider;
+    const providerKey = selectedProvider === 'custom' ? (newProviderConfig.models && newProviderConfig.models.providers ? Object.keys(newProviderConfig.models.providers)[0] : '') : selectedProvider;
     const isDeepSeek = providerKey && /deepseek/i.test(providerKey);
 
     if (isDeepSeek) {
-        if (openclawConfig.models && openclawConfig.models.providers) {
-            Object.values(openclawConfig.models.providers).forEach(p => {
+        if (newProviderConfig.models && newProviderConfig.models.providers) {
+            Object.values(newProviderConfig.models.providers).forEach(p => {
                 p.api = 'openai-completions';
             });
         }
     }
 
     try {
+        // Load the current full config so we can preserve every existing provider/model.
+        const existingCfg = await (await fetch('/api/config')).json();
+
+        // Merge new provider into existing providers (append + dedup by model id).
+        const mergedProviders = existingCfg.models && existingCfg.models.providers && typeof existingCfg.models.providers === 'object'
+            ? { ...existingCfg.models.providers } : {};
+        const newProviders = (newProviderConfig.models && newProviderConfig.models.providers) || {};
+        for (const name of Object.keys(newProviders)) {
+            const incoming = newProviders[name];
+            const target = mergedProviders[name] = mergedProviders[name] && typeof mergedProviders[name] === 'object' ? { ...mergedProviders[name] } : {};
+            for (const k of Object.keys(incoming)) {
+                const iv = incoming[k];
+                const ev = target[k];
+                if (k === 'models' && Array.isArray(iv)) {
+                    const map = new Map();
+                    for (const m of (Array.isArray(ev) ? ev : [])) if (m && m.id != null) map.set(String(m.id), m);
+                    for (const m of iv) if (m && m.id != null) map.set(String(m.id), m);
+                    target[k] = Array.from(map.values());
+                } else if (iv && typeof iv === 'object' && !Array.isArray(iv) && ev && typeof ev === 'object' && !Array.isArray(ev)) {
+                    target[k] = { ...ev, ...iv };
+                } else {
+                    target[k] = iv;
+                }
+            }
+        }
+
+        // Payload: full merged providers + the newly active primary model.
+        const payload = {
+            models: { mode: 'merge', providers: mergedProviders },
+            agents: { defaults: { model: { primary: providerKey + '/' + model } } }
+        };
+
         const res = await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(openclawConfig)
+            body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('保存失败');
+
+        // Record chosen key onto the selected card so future load persists it.
+        const sel = document.querySelector('.model-card.selected');
+        if (sel) sel.dataset.apiKey = apiKey;
 
         showToast('配置已保存！');
         goStep(3);
@@ -660,10 +717,18 @@ function showToast(msg, isError) {
     setTimeout(() => t.className = 'toast', 3000);
 }
 
+const savedPrimary = { provider: null, model: null };
+
 async function loadConfig() {
     try {
         const res = await fetch('/api/config');
         const cfg = await res.json();
+
+        if (cfg.agents && cfg.agents.defaults && cfg.agents.defaults.model && cfg.agents.defaults.model.primary) {
+            const prim = String(cfg.agents.defaults.model.primary);
+            const idx = prim.indexOf('/');
+            if (idx > 0) { savedPrimary.provider = prim.slice(0, idx); savedPrimary.model = prim.slice(idx + 1); }
+        }
 
         if (cfg.env && cfg.env.ZAI_API_KEY) {
             const card = document.querySelector('.model-card[data-provider="zai"]');
@@ -673,16 +738,92 @@ async function loadConfig() {
         }
 
         if (cfg.models && cfg.models.providers) {
-            const providerName = Object.keys(cfg.models.providers)[0];
-            if (providerName) {
+            for (const providerName of Object.keys(cfg.models.providers)) {
                 const p = cfg.models.providers[providerName];
-                document.querySelectorAll('.model-card').forEach(card => {
-                    if (card.dataset.provider === providerName) card.click();
+                if (!p || typeof p !== 'object') continue;
+                const apiKey = p.apiKey || (p.env && p.env.API_KEY) || '';
+                const isCustomProvider = providerName === 'custom';
+                // For the custom provider render EACH saved model as its own card so
+                // multiple local models can be switched individually.
+                if (isCustomProvider && Array.isArray(p.models)) {
+                    p.models.forEach(m => { if (m && m.id) addCustomCard(providerName, p.baseUrl || '', m.id, apiKey); });
+                    continue;
+                }
+                // Fill matching hardcoded cards' key/base/model (cloud & custom placeholder).
+                let matched = false;
+                document.querySelectorAll('#step1 .model-card').forEach(card => {
+                    if (card.dataset.provider === providerName) {
+                        matched = true;
+                        if (apiKey) card.dataset.apiKey = apiKey;
+                        card.dataset.base = card.dataset.base || p.baseUrl || '';
+                        card.dataset.model = card.dataset.model || (p.models && p.models[0] && p.models[0].id) || '';
+                    }
                 });
-                if (p.apiKey) document.getElementById('apiKey').value = p.apiKey;
+                if (!matched) {
+                    if (Array.isArray(p.models)) p.models.forEach(m => { if (m && m.id) addCustomCard(providerName, p.baseUrl || '', m.id, apiKey); });
+                    else if (p.models && p.models[0]) addCustomCard(providerName, p.baseUrl || '', p.models[0].id, apiKey);
+                }
+            }
+
+            // Select the saved active primary if renderable, else the first provider.
+            let targetCard = null;
+            if (savedPrimary.provider) {
+                targetCard = [...document.querySelectorAll('#step1 .model-card')].find(c =>
+                    c.dataset.provider === savedPrimary.provider && (c.dataset.model === savedPrimary.model || c.dataset.model === '')
+                ) || [...document.querySelectorAll('#step1 .model-card')].find(c => c.dataset.provider === savedPrimary.provider);
+            }
+            if (!targetCard) targetCard = document.querySelector('#step1 .model-card');
+            if (targetCard) {
+                targetCard.click();
+                const key = targetCard.dataset.apiKey;
+                if (key) document.getElementById('apiKey').value = key;
+                // Pre-fill custom base/model so switching back retains them.
+                if (targetCard.dataset.provider === 'custom') {
+                    document.getElementById('customBase').value = targetCard.dataset.base || '';
+                    document.getElementById('customModel').value = targetCard.dataset.model || '';
+                }
             }
         }
     } catch(e) {}
+}
+
+// Re-render dynamic custom cards when the grid is re-entered so saved models stay visible.
+function addCustomCard(providerName, baseUrl, model, apiKey) {
+    const grid = document.querySelector('#step1 .model-grid');
+    if (!grid) return;
+    if ([...grid.querySelectorAll('.model-card')].some(c =>
+        c.dataset.provider === providerName && c.dataset.model === model)) return; // dedup
+    const card = document.createElement('div');
+    card.className = 'model-card';
+    card.dataset.provider = providerName;
+    card.dataset.base = baseUrl || '';
+    card.dataset.model = model;
+    card.dataset.apiKey = apiKey || '';
+    card.innerHTML = `
+        <span class="check">✓</span>
+        <h4>${escapeHtml(providerName)} <span class="tag cn">本地/自定义</span></h4>
+        <p>${escapeHtml(model)}</p>
+    `;
+    card.addEventListener('click', (e) => {
+        document.querySelectorAll('#step1 .model-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedProvider = card.dataset.provider;
+        selectedBase = card.dataset.base;
+        selectedModel = card.dataset.model;
+        document.getElementById('nextStep1').disabled = false;
+        const key = card.dataset.apiKey;
+        if (key) document.getElementById('apiKey').value = key;
+        if (selectedProvider === 'custom') {
+            document.getElementById('customBase').value = selectedBase;
+            document.getElementById('customModel').value = selectedModel;
+            setupStep2();
+        }
+    });
+    grid.appendChild(card);
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 loadConfig();
 

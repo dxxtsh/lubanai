@@ -18,6 +18,36 @@ function getConfig() {
   catch { return { gateway: { auth: { token: 'lubanai-disk-token' }, mode: 'local' } }; }
 }
 function saveConfig(cfg) { fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2), 'utf-8'); }
+
+// Merge an incoming provider object into an existing one.
+// Non-models fields (baseUrl, apiKey, api, ...) are updated by incoming.
+// The "models" array is MERGED by model id (append + dedup + update), so
+// previously saved models inside custom etc. are never dropped.
+function mergeProvider(existing, incoming) {
+  const out = existing && typeof existing === 'object' ? { ...existing } : {};
+  if (!incoming || typeof incoming !== 'object') return out;
+  for (const k of Object.keys(incoming)) {
+    const iv = incoming[k];
+    const ev = out[k];
+    if (k === 'models') {
+      if (Array.isArray(iv)) {
+        const map = new Map();
+        for (const m of (Array.isArray(ev) ? ev : [])) if (m && typeof m === 'object' && m.id != null) map.set(String(m.id), m);
+        for (const m of iv) if (m && typeof m === 'object' && m.id != null) map.set(String(m.id), m);
+        out[k] = Array.from(map.values());
+      } else if (iv && typeof iv === 'object') {
+        out[k] = { ...(ev && typeof ev === 'object' && !Array.isArray(ev) ? ev : {}), ...iv };
+      } else {
+        out[k] = iv;
+      }
+    } else if (iv && typeof iv === 'object' && !Array.isArray(iv) && ev && typeof ev === 'object' && !Array.isArray(ev)) {
+      out[k] = { ...ev, ...iv };
+    } else {
+      out[k] = iv;
+    }
+  }
+  return out;
+}
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -37,7 +67,40 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/config') {
     if (req.method === 'GET') { json(getConfig()); return; }
     if (req.method === 'POST') {
-      try { const body = await readBody(req); saveConfig(Object.assign(getConfig(), body)); json({ ok: true }); }
+      try {
+        const body = await readBody(req);
+        const existing = getConfig();
+        // Incremental merge: preserve existing providers/agents/channels, upsert the incoming ones.
+        if (body.models && typeof body.models === 'object') {
+          existing.models = existing.models || {};
+          existing.models.providers = existing.models.providers || {};
+          if (body.models.mode) existing.models.mode = body.models.mode;
+          if (body.models.providers && typeof body.models.providers === 'object') {
+            for (const name of Object.keys(body.models.providers)) {
+              existing.models.providers[name] = mergeProvider(existing.models.providers[name], body.models.providers[name]);
+            }
+          }
+        }
+        // Set the newly selected model as the default active primary, keeping other agent config.
+        if (body.agents && body.agents.defaults && body.agents.defaults.model && body.agents.defaults.model.primary) {
+          existing.agents = existing.agents || {};
+          existing.agents.defaults = existing.agents.defaults || {};
+          existing.agents.defaults.model = existing.agents.defaults.model || {};
+          existing.agents.defaults.model.primary = body.agents.defaults.model.primary;
+        }
+        // Merge remaining top-level keys (channels, gateway, commands, plugins, etc.), preserving other keys.
+        for (const k of Object.keys(body)) {
+          if (k === 'models' || k === 'agents') continue;
+          const v = body[k];
+          if (v && typeof v === 'object' && !Array.isArray(v) && existing[k] && typeof existing[k] === 'object' && !Array.isArray(existing[k])) {
+            existing[k] = { ...existing[k], ...v };
+          } else {
+            existing[k] = v;
+          }
+        }
+        saveConfig(existing);
+        json({ ok: true });
+      }
       catch (e) { json({ error: e.message }, 400); }
       return;
     }
