@@ -483,6 +483,10 @@ document.querySelectorAll('#step1 .model-card').forEach(card => {
         selectedBase = card.dataset.base;
         selectedModel = card.dataset.model;
         document.getElementById('nextStep1').disabled = false;
+        if (selectedProvider === 'custom') {
+            document.getElementById('customBase').value = selectedBase;
+            document.getElementById('customModel').value = selectedModel;
+        }
     });
 });
 
@@ -743,10 +747,17 @@ async function loadConfig() {
                 if (!p || typeof p !== 'object') continue;
                 const apiKey = p.apiKey || (p.env && p.env.API_KEY) || '';
                 const isCustomProvider = providerName === 'custom';
-                // For the custom provider render EACH saved model as its own card so
-                // multiple local models can be switched individually.
-                if (isCustomProvider && Array.isArray(p.models)) {
-                    p.models.forEach(m => { if (m && m.id) addCustomCard(providerName, p.baseUrl || '', m.id, apiKey); });
+                // Prefill the static custom card so saved models remain usable
+                // without rendering extra "custom" cards into the grid.
+                if (isCustomProvider) {
+                    const customCard = document.querySelector('.model-card[data-provider="custom"]');
+                    if (customCard) {
+                        if (p.baseUrl) customCard.dataset.base = p.baseUrl;
+                        const ids = (Array.isArray(p.models) ? p.models : []).map(m => String(m && m.id)).filter(Boolean);
+                        const pick = ids.includes(String(savedPrimary.model)) ? String(savedPrimary.model) : (ids[0] || '');
+                        if (pick) customCard.dataset.model = pick;
+                        if (apiKey) customCard.dataset.apiKey = apiKey;
+                    }
                     continue;
                 }
                 // Fill matching hardcoded cards' key/base/model (cloud & custom placeholder).
@@ -789,6 +800,7 @@ async function loadConfig() {
 
 // Re-render dynamic custom cards when the grid is re-entered so saved models stay visible.
 function addCustomCard(providerName, baseUrl, model, apiKey) {
+    if (providerName === 'custom') return; // never render extra "custom" cards
     const grid = document.querySelector('#step1 .model-grid');
     if (!grid) return;
     if ([...grid.querySelectorAll('.model-card')].some(c =>
