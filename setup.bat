@@ -8,8 +8,10 @@ set "OPENCLAW_HOME=%ROOT%"
 set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
 set "OPENCLAW_STATE_DIR=%ROOT%\config"
 
+set "ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/"
+set "ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/"
+
 if exist "%OPENCLAW_CONFIG_PATH%" (
-    rem --- Config already exists: tell postinstall to leave everything alone ---
     set "OPENCLAW_DISABLE_BUNDLED_PLUGIN_POSTINSTALL=1"
     set "OPENCLAW_DISABLE_PLUGIN_REGISTRY_MIGRATION=1"
     echo [SKIP] Existing config detected, setup will not overwrite it
@@ -34,12 +36,17 @@ set "PATH=%ROOT%\runtime;%ROOT%\runtime\node_modules\.bin;%ROOT%\node_modules\.b
 
 echo [2/2] Installing dependencies...
 cd /d "%ROOT%"
+
+call "%ROOT%\runtime\npm.cmd" config set ignore-scripts false
 call "%ROOT%\runtime\npm.cmd" install --no-audit --no-fund
 if errorlevel 1 (
     echo [FAIL] Dependency installation failed
     pause
     exit /b 1
 )
+
+echo [2/2] Fetching Electron binaries (Mirror Accelerated)...
+call "%ROOT%\runtime\node.exe" "%ROOT%\node_modules\electron\install.js"
 
 echo.
 echo ========================================
