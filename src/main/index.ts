@@ -19,6 +19,13 @@ const GATEWAY_STARTUP_TIMEOUT = 180000;
 const isPackaged = app.isPackaged;
 const appRoot = isPackaged ? path.resolve(process.resourcesPath, '..') : path.resolve(__dirname, '..', '..', '..');
 
+// ── Icon Path ──
+const preferredIcon = path.join(appRoot, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+const fallbackIcon = path.join(appRoot, 'assets', 'icon.png');
+const iconPath = fs.existsSync(preferredIcon)
+  ? preferredIcon
+  : (fs.existsSync(fallbackIcon) ? fallbackIcon : preferredIcon);
+
 // Resource directory (where Config.html and loading.html are placed)
 const resourcesPath = isPackaged
   ? path.join(process.resourcesPath, 'resources')
@@ -42,6 +49,7 @@ let configServerPort: number | null = null;
 let isQuitting = false;
 let keepRunningInBackground = true;
 let hasShownTrayBalloon = false;
+const isStartupHidden = process.argv.includes('--hidden') || process.argv.includes('--autostart');
 
 // ── Deep Merge Utility ──
 function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
@@ -559,33 +567,6 @@ function stopGateway(): void {
   }
 }
 
-function getTrayIcon(): NativeImage {
-  const candidatePaths = [
-    path.join(appRoot, 'assets', 'icon.ico'),
-    path.join(appRoot, 'assets', 'icon.png'),
-    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon-32.png'),
-    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon.ico'),
-    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon.svg'),
-    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'apple-touch-icon.png'),
-    path.join(resourcesPath, 'icon.png'),
-  ];
-
-  for (const p of candidatePaths) {
-    if (fs.existsSync(p)) {
-      try {
-        const img = nativeImage.createFromPath(p);
-        if (!img.isEmpty()) {
-          return img.resize({ width: 32, height: 32 });
-        }
-      } catch {}
-    }
-  }
-
-  // Fallback 32x32 red lobster SVG data URL
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#e11d48"/><path d="M10 12 C10 8, 14 6, 16 6 C18 6, 22 8, 22 12 C22 16, 20 18, 16 20 C12 18, 10 16, 10 12 Z" fill="#ffffff"/><circle cx="13" cy="11" r="1.5" fill="#e11d48"/><circle cx="19" cy="11" r="1.5" fill="#e11d48"/></svg>`;
-  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`).resize({ width: 32, height: 32 });
-}
-
 function showMainWindow(): void {
   if (!mainWindow) {
     createWindow();
@@ -604,7 +585,8 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 650,
     title: APP_NAME,
-    icon: getTrayIcon(),
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    show: !isStartupHidden,
     backgroundColor: '#0a0a0a',
     webPreferences: {
       nodeIntegration: false,
@@ -613,7 +595,7 @@ function createWindow(): void {
     },
   });
 
-  mainWindow.on('close', (event) => {
+  mainWindow.on('close', (event: any) => {
     if (!isQuitting && keepRunningInBackground) {
       event.preventDefault();
       mainWindow?.hide();
@@ -634,7 +616,7 @@ function createWindow(): void {
     mainWindow = null;
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
     if (url.startsWith('http')) shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -659,20 +641,63 @@ function loadConfigPage(): void {
   mainWindow.loadURL(getConfigURL());
 }
 
+// ── Auto-start Helpers ──
+function getAutoStart(): boolean {
+  try {
+    return app.getLoginItemSettings().openAtLogin;
+  } catch {
+    return false;
+  }
+}
+
+function setAutoStart(enable: boolean): void {
+  try {
+    if (isPackaged) {
+      app.setLoginItemSettings({
+        openAtLogin: enable,
+        args: ['--hidden'],
+      });
+    } else {
+      app.setLoginItemSettings({
+        openAtLogin: enable,
+        path: process.execPath,
+        args: [appRoot, '--hidden'],
+      });
+    }
+    console.log(`[${APP_NAME}] Auto-start set to: ${enable}`);
+  } catch (err) {
+    console.warn(`[${APP_NAME}] Failed to configure auto-start:`, err);
+  }
+}
+
 function updateTrayMenu(): void {
   if (!tray) return;
+  const autoStart = getAutoStart();
+
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '打开主界面',
       click: () => showMainWindow(),
     },
+    { type: 'separator' },
     {
-      label: '后台常驻运行',
+      label: '关闭时最小化到托盘',
       type: 'checkbox',
       checked: keepRunningInBackground,
-      click: (menuItem) => {
+      click: (menuItem: any) => {
         keepRunningInBackground = menuItem.checked;
         createMenu();
+        updateTrayMenu();
+      },
+    },
+    {
+      label: '开机自动启动',
+      type: 'checkbox',
+      checked: autoStart,
+      click: (menuItem: any) => {
+        setAutoStart(menuItem.checked);
+        createMenu();
+        updateTrayMenu();
       },
     },
     { type: 'separator' },
@@ -690,8 +715,11 @@ function updateTrayMenu(): void {
 // ── Tray ──
 function createTray(): void {
   try {
-    const icon = getTrayIcon();
-    tray = new Tray(icon);
+    if (!fs.existsSync(iconPath)) {
+      console.warn(`[${APP_NAME}] Tray icon file not found at: ${iconPath}`);
+      return;
+    }
+    tray = new Tray(iconPath);
     tray.setToolTip(APP_NAME);
     updateTrayMenu();
 
@@ -702,7 +730,7 @@ function createTray(): void {
       showMainWindow();
     });
   } catch (e) {
-    console.warn(`[${APP_NAME}] Tray icon not loaded:`, e);
+    console.warn(`[${APP_NAME}] Failed to initialize tray icon at ${iconPath}:`, e);
   }
 }
 
@@ -720,11 +748,20 @@ function createMenu(): void {
         { label: '打开数据目录', click: () => shell.openPath(appRoot) },
         { type: 'separator' },
         {
-          label: '最小化到托盘（后台常驻）',
+          label: '关闭时最小化到托盘（后台常驻）',
           type: 'checkbox',
           checked: keepRunningInBackground,
-          click: (menuItem) => {
+          click: (menuItem: any) => {
             keepRunningInBackground = menuItem.checked;
+            updateTrayMenu();
+          },
+        },
+        {
+          label: '开机自动启动',
+          type: 'checkbox',
+          checked: getAutoStart(),
+          click: (menuItem: any) => {
+            setAutoStart(menuItem.checked);
             updateTrayMenu();
           },
         },
@@ -797,11 +834,7 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindow();
   });
 
   // ── App Lifecycle ──
