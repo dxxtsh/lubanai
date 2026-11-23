@@ -92,6 +92,7 @@ function protectCriticalFields(merged: Record<string, any>): Record<string, any>
     }
 
   } catch { /* Cannot read disk — skip protection */ }
+  merged.update = { ...(merged.update || {}), auto: { enabled: false }, checkOnStart: false };
   return merged;
 }
 
@@ -125,6 +126,7 @@ function ensureConfig(): void {
         } else {
           const defaultConfig = {
             gateway: { mode: 'local', auth: { token: 'lubanai-disk-token' } },
+            update: { auto: { enabled: false }, checkOnStart: false },
           };
           fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
           console.log(`[${APP_NAME}] Created default config`);
@@ -459,7 +461,7 @@ function startGateway(port: number): Promise<number> {
     gatewayProcess = spawn(openclawBat, ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)], {
       cwd: appRoot, shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_STATE_DIR: configDir, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_EMBEDDED_IN: APP_NAME, OPENCLAW_DISABLE_BONJOUR: '1' },
+      env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_STATE_DIR: configDir, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_EMBEDDED_IN: APP_NAME, OPENCLAW_DISABLE_BONJOUR: '1', OPENCLAW_NO_UPDATE: '1', OPENCLAW_SKIP_UPDATE_CHECK: '1' },
     });
 
     gatewayProcess.stdout?.on('data', (data) => {

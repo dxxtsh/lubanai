@@ -4,5 +4,11 @@
             "token": "lubanai-disk-token"
         },
         "mode": "local"
+    },
+    "update": {
+        "auto": {
+            "enabled": false
+        },
+        "checkOnStart": false
     }
 }

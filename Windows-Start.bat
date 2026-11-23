@@ -16,6 +16,8 @@ set "OPENCLAW_HOME=%ROOT%"
 set "OPENCLAW_CONFIG_PATH=%ROOT%\config\openclaw.json"
 set "OPENCLAW_STATE_DIR=%ROOT%\config"
 set "OPENCLAW_DISABLE_BONJOUR=1"
+set "OPENCLAW_NO_UPDATE=1"
+set "OPENCLAW_SKIP_UPDATE_CHECK=1"
 
 if exist "%ROOT%\node_modules\electron\dist\electron.exe" (
     start "" "%ROOT%\node_modules\electron\dist\electron.exe" "%ROOT%"
