@@ -789,55 +789,71 @@ function setupIPC(): void {
   ipcMain.handle('open-config', () => loadConfigPage());
 }
 
-// ── App Lifecycle ──
-app.whenReady().then(async () => {
-  console.log(`[${APP_NAME}] starting...`);
+// ── Single Instance Lock ──
+const gotTheLock = app.requestSingleInstanceLock();
 
-  ensureConfig();
-  ensureConfigStructure();
-  cleanupOpenClawState();
-  createMenu();
-  setupIPC();
-  createWindow();
-  createTray();
-
-  await startConfigServer();
-
-  try {
-    const port = await findAvailablePort();
-    await startGateway(port);
-
-    if (hasModelConfigured()) {
-      loadAppPage();
-    } else {
-      console.log(`[${APP_NAME}] No model configured, opening configuration wizard.`);
-      loadConfigPage();
+if (!gotTheLock) {
+  console.log(`[${APP_NAME}] Another instance is already running. Quitting.`);
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
     }
-  } catch (err: any) {
-    console.error(`[${APP_NAME}] Failed to start gateway:`, err);
-    const msg = err.message.includes('timeout')
-      ? `OpenClaw 网关启动超时（${GATEWAY_STARTUP_TIMEOUT / 1000}秒）。\n\n请检查端口 ${DEFAULT_PORT}-${MAX_PORT} 是否被占用，或内核程序是否异常。`
-      : `无法启动 OpenClaw 智能体引擎。\n\n错误信息：${err.message}\n\n请检查内核程序或端口占用情况。`;
-    dialog.showErrorBox(`${APP_NAME} - 启动失败`, msg);
-  }
-});
+  });
 
-app.on('window-all-closed', () => {
-  if (isQuitting || !keepRunningInBackground) {
-    stopGateway();
-    app.quit();
-  }
-});
+  // ── App Lifecycle ──
+  app.whenReady().then(async () => {
+    console.log(`[${APP_NAME}] starting...`);
 
-app.on('before-quit', () => {
-  isQuitting = true;
-  stopGateway();
-});
-
-app.on('activate', () => {
-  if (!mainWindow) {
+    ensureConfig();
+    ensureConfigStructure();
+    cleanupOpenClawState();
+    createMenu();
+    setupIPC();
     createWindow();
-  } else {
-    showMainWindow();
-  }
-});
+    createTray();
+
+    await startConfigServer();
+
+    try {
+      const port = await findAvailablePort();
+      await startGateway(port);
+
+      if (hasModelConfigured()) {
+        loadAppPage();
+      } else {
+        console.log(`[${APP_NAME}] No model configured, opening configuration wizard.`);
+        loadConfigPage();
+      }
+    } catch (err: any) {
+      console.error(`[${APP_NAME}] Failed to start gateway:`, err);
+      const msg = err.message.includes('timeout')
+        ? `OpenClaw 网关启动超时（${GATEWAY_STARTUP_TIMEOUT / 1000}秒）。\n\n请检查端口 ${DEFAULT_PORT}-${MAX_PORT} 是否被占用，或内核程序是否异常。`
+        : `无法启动 OpenClaw 智能体引擎。\n\n错误信息：${err.message}\n\n请检查内核程序或端口占用情况。`;
+      dialog.showErrorBox(`${APP_NAME} - 启动失败`, msg);
+    }
+  });
+
+  app.on('window-all-closed', () => {
+    if (isQuitting || !keepRunningInBackground) {
+      stopGateway();
+      app.quit();
+    }
+  });
+
+  app.on('before-quit', () => {
+    isQuitting = true;
+    stopGateway();
+  });
+
+  app.on('activate', () => {
+    if (!mainWindow) {
+      createWindow();
+    } else {
+      showMainWindow();
+    }
+  });
+}
