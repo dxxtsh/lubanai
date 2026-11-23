@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, NativeImage, shell, dialog, ipcMain } from 'electron';
 import { spawn, ChildProcess, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -39,6 +39,9 @@ let gatewayProcess: ChildProcess | null = null;
 let gatewayPort = DEFAULT_PORT;
 let gatewayReady = false;
 let configServerPort: number | null = null;
+let isQuitting = false;
+let keepRunningInBackground = true;
+let hasShownTrayBalloon = false;
 
 // ── Deep Merge Utility ──
 function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
@@ -556,6 +559,43 @@ function stopGateway(): void {
   }
 }
 
+function getTrayIcon(): NativeImage {
+  const candidatePaths = [
+    path.join(appRoot, 'assets', 'icon.ico'),
+    path.join(appRoot, 'assets', 'icon.png'),
+    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon-32.png'),
+    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon.ico'),
+    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'favicon.svg'),
+    path.join(appRoot, 'node_modules', 'openclaw', 'dist', 'control-ui', 'apple-touch-icon.png'),
+    path.join(resourcesPath, 'icon.png'),
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const img = nativeImage.createFromPath(p);
+        if (!img.isEmpty()) {
+          return img.resize({ width: 32, height: 32 });
+        }
+      } catch {}
+    }
+  }
+
+  // Fallback 32x32 red lobster SVG data URL
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#e11d48"/><path d="M10 12 C10 8, 14 6, 16 6 C18 6, 22 8, 22 12 C22 16, 20 18, 16 20 C12 18, 10 16, 10 12 Z" fill="#ffffff"/><circle cx="13" cy="11" r="1.5" fill="#e11d48"/><circle cx="19" cy="11" r="1.5" fill="#e11d48"/></svg>`;
+  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`).resize({ width: 32, height: 32 });
+}
+
+function showMainWindow(): void {
+  if (!mainWindow) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
 // ── Window Management ──
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -564,12 +604,30 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 650,
     title: APP_NAME,
+    icon: getTrayIcon(),
     backgroundColor: '#0a0a0a',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
     },
+  });
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting && keepRunningInBackground) {
+      event.preventDefault();
+      mainWindow?.hide();
+      if (!hasShownTrayBalloon && tray) {
+        hasShownTrayBalloon = true;
+        try {
+          tray.displayBalloon({
+            title: APP_NAME,
+            content: '钉哥联盟 AI 智盘已最小化到右下角托盘后台运行，双击图标可重新打开',
+            iconType: 'info',
+          });
+        } catch {}
+      }
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -601,27 +659,50 @@ function loadConfigPage(): void {
   mainWindow.loadURL(getConfigURL());
 }
 
+function updateTrayMenu(): void {
+  if (!tray) return;
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '打开主界面',
+      click: () => showMainWindow(),
+    },
+    {
+      label: '后台常驻运行',
+      type: 'checkbox',
+      checked: keepRunningInBackground,
+      click: (menuItem) => {
+        keepRunningInBackground = menuItem.checked;
+        createMenu();
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+}
+
 // ── Tray ──
 function createTray(): void {
   try {
-    tray = new Tray(path.join(appRoot, 'assets', 'icon.png'));
+    const icon = getTrayIcon();
+    tray = new Tray(icon);
     tray.setToolTip(APP_NAME);
-    const menu = Menu.buildFromTemplate([
-      { label: APP_NAME, enabled: false },
-      { type: 'separator' },
-      { label: '打开聊天页面', click: () => loadAppPage() },
-      { label: '打开配置向导', click: () => loadConfigPage() },
-      { label: '打开数据文件夹', click: () => shell.openPath(appRoot) },
-      { type: 'separator' },
-      { label: '退出', click: () => app.quit() },
-    ]);
-    tray.setContextMenu(menu);
-    tray.on('double-click', () => {
-      mainWindow?.show();
-      mainWindow?.focus();
+    updateTrayMenu();
+
+    tray.on('click', () => {
+      showMainWindow();
     });
-  } catch {
-    console.warn('Tray icon not loaded.');
+    tray.on('double-click', () => {
+      showMainWindow();
+    });
+  } catch (e) {
+    console.warn(`[${APP_NAME}] Tray icon not loaded:`, e);
   }
 }
 
@@ -638,7 +719,24 @@ function createMenu(): void {
         { type: 'separator' },
         { label: '打开数据目录', click: () => shell.openPath(appRoot) },
         { type: 'separator' },
-        { label: '退出', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() },
+        {
+          label: '最小化到托盘（后台常驻）',
+          type: 'checkbox',
+          checked: keepRunningInBackground,
+          click: (menuItem) => {
+            keepRunningInBackground = menuItem.checked;
+            updateTrayMenu();
+          },
+        },
+        { type: 'separator' },
+        {
+          label: '退出',
+          accelerator: 'CmdOrCtrl+Q',
+          click: () => {
+            isQuitting = true;
+            app.quit();
+          },
+        },
       ],
     },
     {
@@ -725,16 +823,21 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  stopGateway();
-  app.quit();
+  if (isQuitting || !keepRunningInBackground) {
+    stopGateway();
+    app.quit();
+  }
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   stopGateway();
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (!mainWindow) {
     createWindow();
+  } else {
+    showMainWindow();
   }
 });
