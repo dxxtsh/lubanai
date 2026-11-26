@@ -226,7 +226,14 @@ function tryListen(port) {
   server.listen(port, '127.0.0.1', () => {
     const url = `http://127.0.0.1:${port}/?step=3`;
     console.log(`Channel config server: ${url}`);
-    try { execSync(`start "" "${url}"`, { shell: true }); } catch {}
+    try {
+      const openCmd = process.platform === 'darwin'
+        ? `open "${url}"`
+        : process.platform === 'win32'
+          ? `start "" "${url}"`
+          : `xdg-open "${url}"`;
+      execSync(openCmd, { shell: true });
+    } catch {}
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && port < PORT + 10) tryListen(port + 1);

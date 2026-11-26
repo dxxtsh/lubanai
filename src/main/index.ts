@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, NativeImage, shell, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, NativeImage, shell, dialog, ipcMain, Notification } from 'electron';
 import { spawn, ChildProcess, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -26,14 +26,69 @@ const iconPath = fs.existsSync(preferredIcon)
   ? preferredIcon
   : (fs.existsSync(fallbackIcon) ? fallbackIcon : preferredIcon);
 
+function getTrayImage(): { image: NativeImage | string; isTemplate: boolean } {
+  if (process.platform === 'darwin') {
+    const trayTemplatePath = path.join(appRoot, 'assets', 'trayTemplate.png');
+    if (fs.existsSync(trayTemplatePath)) {
+      const img = nativeImage.createFromPath(trayTemplatePath);
+      img.setTemplateImage(true);
+      return { image: img, isTemplate: true };
+    }
+  }
+  return { image: iconPath, isTemplate: false };
+}
+
 // Resource directory (where Config.html and loading.html are placed)
 const resourcesPath = isPackaged
   ? path.join(process.resourcesPath, 'resources')
   : path.join(appRoot, 'resources');
 
-// Unified OpenClaw CLI entry
+// Unified OpenClaw CLI entry & cross-platform runner
 const openclawBat = path.join(appRoot, 'OpenClaw.bat');
-const hasOpenclawBat = fs.existsSync(openclawBat);
+const openclawSh = path.join(appRoot, 'openclaw.sh');
+
+function getOpenClawRunner(): { command: string; argsPrefix: string[]; shell: boolean } {
+  const isWin = process.platform === 'win32';
+  const nodeBin = isWin
+    ? path.join(appRoot, 'runtime', 'node.exe')
+    : path.join(appRoot, 'runtime', 'bin', 'node');
+  const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'openclaw.mjs');
+
+  if (isWin && fs.existsSync(openclawBat)) {
+    return { command: openclawBat, argsPrefix: [], shell: true };
+  }
+  if (!isWin && fs.existsSync(openclawSh)) {
+    return { command: openclawSh, argsPrefix: [], shell: true };
+  }
+  const nodeExec = fs.existsSync(nodeBin) ? nodeBin : 'node';
+  return { command: nodeExec, argsPrefix: [openclawMjs], shell: false };
+}
+
+function getOpenClawExecCmd(argsStr: string): string {
+  const isWin = process.platform === 'win32';
+  const nodeBin = isWin
+    ? path.join(appRoot, 'runtime', 'node.exe')
+    : path.join(appRoot, 'runtime', 'bin', 'node');
+  const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'openclaw.mjs');
+
+  if (isWin && fs.existsSync(openclawBat)) {
+    return `"${openclawBat}" ${argsStr}`;
+  }
+  if (!isWin && fs.existsSync(openclawSh)) {
+    return `bash "${openclawSh}" ${argsStr}`;
+  }
+  const nodeExec = fs.existsSync(nodeBin) ? nodeBin : 'node';
+  return `"${nodeExec}" "${openclawMjs}" ${argsStr}`;
+}
+
+function hasOpenClawEntry(): boolean {
+  const isWin = process.platform === 'win32';
+  const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'openclaw.mjs');
+  if (isWin) {
+    return fs.existsSync(openclawBat) || fs.existsSync(openclawMjs);
+  }
+  return fs.existsSync(openclawSh) || fs.existsSync(openclawMjs);
+}
 
 // Portable data paths
 const configDir = path.join(appRoot, 'config');
@@ -292,11 +347,12 @@ function startConfigServer(): Promise<number> {
         return;
       }
 
-      // WeChat endpoints (via OpenClaw.bat)
+      // WeChat endpoints (cross-platform via OpenClaw)
       if (url.pathname === '/api/wechat/login' && req.method === 'POST') {
         try {
-          const child = spawn(openclawBat, ['channels', 'login', '--channel', 'openclaw-weixin'], {
-            cwd: appRoot, stdio: 'inherit', shell: true,
+          const runner = getOpenClawRunner();
+          const child = spawn(runner.command, [...runner.argsPrefix, 'channels', 'login', '--channel', 'openclaw-weixin'], {
+            cwd: appRoot, stdio: 'inherit', shell: runner.shell,
           });
           await new Promise<void>((resolve, reject) => {
             child.on('close', (code) => code === 0 ? resolve() : reject(new Error(`login exited with code ${code}`)));
@@ -312,7 +368,8 @@ function startConfigServer(): Promise<number> {
       }
       if (url.pathname === '/api/wechat/channel-status' && req.method === 'GET') {
         try {
-          const out = execSync(`"${openclawBat}" channels status`, { cwd: appRoot, encoding: 'utf-8', timeout: 15000 });
+          const cmd = getOpenClawExecCmd('channels status');
+          const out = execSync(cmd, { cwd: appRoot, encoding: 'utf-8', timeout: 15000 });
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ online: out.toLowerCase().includes('online'), status: out }));
         } catch {
@@ -323,7 +380,8 @@ function startConfigServer(): Promise<number> {
       }
       if (url.pathname === '/api/wechat/install-plugin' && req.method === 'POST') {
         try {
-          execSync(`"${openclawBat}" plugins install "@tencent-weixin/openclaw-weixin"`, { cwd: appRoot, timeout: 60000 });
+          const cmd = getOpenClawExecCmd('plugins install "@tencent-weixin/openclaw-weixin"');
+          execSync(cmd, { cwd: appRoot, timeout: 60000 });
           const cfg = getConfig();
           if (!cfg.plugins) cfg.plugins = {};
           if (!cfg.plugins.entries) cfg.plugins.entries = {};
@@ -341,7 +399,8 @@ function startConfigServer(): Promise<number> {
       }
       if (url.pathname === '/api/wechat/plugin-status' && req.method === 'GET') {
         try {
-          const out = execSync(`"${openclawBat}" plugins list --enabled`, { cwd: appRoot, encoding: 'utf-8', timeout: 10000 });
+          const cmd = getOpenClawExecCmd('plugins list --enabled');
+          const out = execSync(cmd, { cwd: appRoot, encoding: 'utf-8', timeout: 10000 });
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ installed: out.includes('openclaw-weixin') }));
         } catch {
@@ -464,15 +523,32 @@ function startGateway(port: number): Promise<number> {
   return new Promise((resolve, reject) => {
     console.log(`[${APP_NAME}] Starting OpenClaw gateway on port ${port}...`);
 
-    if (!fs.existsSync(openclawBat)) {
-      reject(new Error(`OpenClaw.bat not found: ${openclawBat}`));
+    if (!hasOpenClawEntry()) {
+      reject(new Error(`OpenClaw entry not found in: ${appRoot}`));
       return;
     }
 
-    gatewayProcess = spawn(openclawBat, ['gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)], {
-      cwd: appRoot, shell: true,
+    const runner = getOpenClawRunner();
+    const runtimeBinDir = path.join(appRoot, 'runtime', 'bin');
+    const pathEnv = process.platform === 'win32'
+      ? `${path.join(appRoot, 'runtime')};${path.join(appRoot, 'node_modules', '.bin')};${process.env.PATH || ''}`
+      : `${runtimeBinDir}:${path.join(appRoot, 'node_modules', '.bin')}:${process.env.PATH || ''}`;
+
+    gatewayProcess = spawn(runner.command, [...runner.argsPrefix, 'gateway', 'run', '--allow-unconfigured', '--force', '--port', String(port)], {
+      cwd: appRoot,
+      shell: runner.shell,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, OPENCLAW_HOME: appRoot, OPENCLAW_STATE_DIR: configDir, OPENCLAW_CONFIG_PATH: configPath, OPENCLAW_EMBEDDED_IN: APP_NAME, OPENCLAW_DISABLE_BONJOUR: '1', OPENCLAW_NO_UPDATE: '1', OPENCLAW_SKIP_UPDATE_CHECK: '1' },
+      env: {
+        ...process.env,
+        PATH: pathEnv,
+        OPENCLAW_HOME: appRoot,
+        OPENCLAW_STATE_DIR: configDir,
+        OPENCLAW_CONFIG_PATH: configPath,
+        OPENCLAW_EMBEDDED_IN: APP_NAME,
+        OPENCLAW_DISABLE_BONJOUR: '1',
+        OPENCLAW_NO_UPDATE: '1',
+        OPENCLAW_SKIP_UPDATE_CHECK: '1',
+      },
     });
 
     gatewayProcess.stdout?.on('data', (data) => {
@@ -602,11 +678,18 @@ function createWindow(): void {
       if (!hasShownTrayBalloon && tray) {
         hasShownTrayBalloon = true;
         try {
-          tray.displayBalloon({
-            title: APP_NAME,
-            content: '钉哥联盟 AI 智盘已最小化到右下角托盘后台运行，双击图标可重新打开',
-            iconType: 'info',
-          });
+          if (process.platform === 'win32') {
+            tray.displayBalloon({
+              title: APP_NAME,
+              content: '钉哥联盟 AI 智盘已最小化到右下角托盘后台运行，双击图标可重新打开',
+              iconType: 'info',
+            });
+          } else if (process.platform === 'darwin') {
+            new Notification({
+              title: APP_NAME,
+              body: '钉哥联盟 AI 智盘已最小化到托盘后台运行，点击图标可重新打开',
+            }).show();
+          }
         } catch {}
       }
     }
@@ -715,11 +798,12 @@ function updateTrayMenu(): void {
 // ── Tray ──
 function createTray(): void {
   try {
-    if (!fs.existsSync(iconPath)) {
-      console.warn(`[${APP_NAME}] Tray icon file not found at: ${iconPath}`);
+    const { image } = getTrayImage();
+    if (typeof image === 'string' && !fs.existsSync(image)) {
+      console.warn(`[${APP_NAME}] Tray icon file not found at: ${image}`);
       return;
     }
-    tray = new Tray(iconPath);
+    tray = new Tray(image);
     tray.setToolTip(APP_NAME);
     updateTrayMenu();
 

@@ -37,12 +37,23 @@ config/openclaw.json.userbak
 .DS_Store
 Thumbs.db
 desktop.ini
-
+._*
+.Spotlight-V100
+.Trashes
 
 # OpenClaw workspace state
 .openclaw/
 config/devices/
+config/tui/
+config/workspace-attestations/
+*.attested
 .aider*
+
+# Packaging output & archives
+dist_electron/
+out/
+*.dmg
+*.zip
 
 # Runtime sqlite / workspace state
 config/logbook/

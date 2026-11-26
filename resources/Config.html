@@ -697,7 +697,7 @@ function renderPoyoMcp() {
     const box = document.getElementById('poyoMcpBox');
     if (selectedProvider !== 'poyo') { box.style.display = 'none'; return; }
     const key = document.getElementById('apiKey').value.trim();
-    const cmd = `openclaw mcp add poyo --type sse --url https://api.poyo.ai/mcp --headers "Authorization=Bearer ${key}"`;
+    const cmd = `openclaw mcp add poyo --type streamable-http --url https://api.poyo.ai/mcp --headers "Authorization=Bearer ${key}"`;
     document.getElementById('poyoMcpCmd').textContent = cmd;
     box.style.display = 'block';
 }

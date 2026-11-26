@@ -1,15 +1,54 @@
 import { spawn, execSync } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, '..', '..');
-const openclawBat = path.join(appRoot, 'OpenClaw.bat');
+
+export function getOpenClawRunner() {
+  const isWin = process.platform === 'win32';
+  const openclawBat = path.join(appRoot, 'OpenClaw.bat');
+  const openclawSh = path.join(appRoot, 'openclaw.sh');
+  const nodeBin = isWin
+    ? path.join(appRoot, 'runtime', 'node.exe')
+    : path.join(appRoot, 'runtime', 'bin', 'node');
+  const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'openclaw.mjs');
+
+  if (isWin && fs.existsSync(openclawBat)) {
+    return { command: openclawBat, argsPrefix: [], shell: true };
+  }
+  if (!isWin && fs.existsSync(openclawSh)) {
+    return { command: openclawSh, argsPrefix: [], shell: true };
+  }
+  const nodeExec = fs.existsSync(nodeBin) ? nodeBin : 'node';
+  return { command: nodeExec, argsPrefix: [openclawMjs], shell: false };
+}
+
+function getOpenClawExecCmd(argsStr) {
+  const isWin = process.platform === 'win32';
+  const openclawBat = path.join(appRoot, 'OpenClaw.bat');
+  const openclawSh = path.join(appRoot, 'openclaw.sh');
+  const nodeBin = isWin
+    ? path.join(appRoot, 'runtime', 'node.exe')
+    : path.join(appRoot, 'runtime', 'bin', 'node');
+  const openclawMjs = path.join(appRoot, 'node_modules', 'openclaw', 'openclaw.mjs');
+
+  if (isWin && fs.existsSync(openclawBat)) {
+    return `"${openclawBat}" ${argsStr}`;
+  }
+  if (!isWin && fs.existsSync(openclawSh)) {
+    return `bash "${openclawSh}" ${argsStr}`;
+  }
+  const nodeExec = fs.existsSync(nodeBin) ? nodeBin : 'node';
+  return `"${nodeExec}" "${openclawMjs}" ${argsStr}`;
+}
 
 export function loginWechat() {
   return new Promise((resolve, reject) => {
-    const child = spawn(openclawBat, ['channels', 'login', '--channel', 'openclaw-weixin'], {
-      cwd: appRoot, stdio: 'inherit', shell: true,
+    const runner = getOpenClawRunner();
+    const child = spawn(runner.command, [...runner.argsPrefix, 'channels', 'login', '--channel', 'openclaw-weixin'], {
+      cwd: appRoot, stdio: 'inherit', shell: runner.shell,
     });
     child.on('close', (code) => {
       if (code === 0) resolve();
@@ -21,13 +60,15 @@ export function loginWechat() {
 
 export function channelStatus() {
   try {
-    return execSync(`"${openclawBat}" channels status`, { cwd: appRoot, encoding: 'utf-8', timeout: 15000 });
+    const cmd = getOpenClawExecCmd('channels status');
+    return execSync(cmd, { cwd: appRoot, encoding: 'utf-8', timeout: 15000 });
   } catch { return null; }
 }
 
 export function installWechatPlugin() {
   try {
-    execSync(`"${openclawBat}" plugins install "@tencent-weixin/openclaw-weixin"`, {
+    const cmd = getOpenClawExecCmd('plugins install "@tencent-weixin/openclaw-weixin"');
+    execSync(cmd, {
       cwd: appRoot, timeout: 60000, encoding: 'utf-8',
     });
     return true;
@@ -36,7 +77,8 @@ export function installWechatPlugin() {
 
 export function pluginStatus() {
   try {
-    const out = execSync(`"${openclawBat}" plugins list --enabled`, { cwd: appRoot, encoding: 'utf-8', timeout: 10000 });
+    const cmd = getOpenClawExecCmd('plugins list --enabled');
+    const out = execSync(cmd, { cwd: appRoot, encoding: 'utf-8', timeout: 10000 });
     return out.includes('openclaw-weixin');
   } catch { return false; }
 }

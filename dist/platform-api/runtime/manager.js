@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { spawn } from 'child_process';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import { DIRECTORIES, IPC_CHANNELS } from '../../shared/constants.js';
 import { LogLevel, RuntimeStatus } from '../../shared/types.js';
 import { pushLog, runtimeSteps, store } from '../store.js';
@@ -172,7 +172,8 @@ export class RuntimeManager {
             log(`[Runtime] 目录正常: ${dir}`);
         }
         // Check Node.js
-        const nodePath = resolve(ROOT, DIRECTORIES.RUNTIME, 'node.exe');
+        const nodeBinary = process.platform === 'win32' ? 'node.exe' : join('bin', 'node');
+        const nodePath = resolve(ROOT, DIRECTORIES.RUNTIME, nodeBinary);
         if (!existsSync(nodePath)) {
             const msg = `[Runtime] Node.js 未找到: ${nodePath}`;
             log(msg, LogLevel.ERROR);
